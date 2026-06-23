@@ -1,0 +1,17 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+**/build/
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+output/
+.emulator-screenshots/
+.cursor/mcp.json
+
+# Firebase (download from Firebase Console; see specs/PlayConsoleSpec.md §6)
+app/google-services.json

@@ -1,0 +1,3 @@
+[submodule "dart-buddy-ios"]
+	path = dart-buddy-ios
+	url = git@github.com-personal:jacobrozell/Dart-Buddy.git

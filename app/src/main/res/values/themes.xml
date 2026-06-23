@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DartBuddy" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
+    <style name="Theme.DartBuddy.Splash" parent="Theme.DartBuddy">
+        <item name="android:windowBackground">@drawable/splash_screen</item>
+    </style>
+</resources>
