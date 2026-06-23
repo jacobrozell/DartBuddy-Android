@@ -31,6 +31,7 @@ After clone: `git submodule update --init --recursive`
 | [`RoomMigrationsSpec.md`](RoomMigrationsSpec.md) | DB versioning and migration policy |
 | [`DeepLinkSpec.md`](DeepLinkSpec.md) | `dartbuddy://v1` intent filters, routing |
 | [`AppShellSpec.md`](AppShellSpec.md) | 4-tab shell, onboarding gate, splash |
+| [`AdaptiveLayoutSpec.md`](AdaptiveLayoutSpec.md) | Edge-to-edge, breakpoints, tablet/XS/XL/foldable plan |
 | [`ProductSurfaceSpec.md`](ProductSurfaceSpec.md) | Lean 1.0 feature gate (Android) |
 | [`PlayConsoleSpec.md`](PlayConsoleSpec.md) | Play Store listing, signing, tracks |
 | [`SpecGovernance.md`](SpecGovernance.md) | When to update which spec |

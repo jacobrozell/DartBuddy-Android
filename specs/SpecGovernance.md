@@ -19,7 +19,7 @@ When behavior changes on iOS, update the iOS spec first (or in the same PR on th
 | Room schema bump | `DataSchemaSpec.md`, `RoomMigrationsSpec.md` |
 | New game mode shipped | `specs/game-modes/implemented/<Mode>GameSpec.md`, `PARITY.md` |
 | Deep link added | `DeepLinkSpec.md`, `AndroidManifest.xml` |
-| Play Store submit | `PlayConsoleSpec.md`, workspace `docs/projects/dart-buddy-android.md` |
+| Play Store submit | `PlayConsoleSpec.md`, workspace `workspace/projects/dart-buddy-android.md` |
 
 ---
 

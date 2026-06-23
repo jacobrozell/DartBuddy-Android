@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jacobrozell.dartbuddy.data.local.entity.MatchEntity
 import com.jacobrozell.dartbuddy.data.prefs.RematchStore
+import com.jacobrozell.dartbuddy.data.repository.PlayerRepository
 import com.jacobrozell.dartbuddy.data.repository.SettingsRepository
 import com.jacobrozell.dartbuddy.domain.engine.CricketEngine
 import com.jacobrozell.dartbuddy.domain.engine.CricketTurnEvent
@@ -16,6 +17,10 @@ import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.domain.service.MatchStatsCalculator
 import com.jacobrozell.dartbuddy.domain.service.PlayerMatchStats
+import com.jacobrozell.dartbuddy.support.logging.AppLogger
+import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.MatchAnalytics
+import com.jacobrozell.dartbuddy.support.logging.info
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +40,7 @@ data class MatchSummaryUiState(
     val forfeiterName: String? = null,
     val isForfeited: Boolean = false,
     val playerStats: List<PlayerMatchStats> = emptyList(),
+    val setsEnabled: Boolean = false,
     val isUndoing: Boolean = false,
     val undoError: String? = null,
 )
@@ -43,13 +49,16 @@ data class MatchSummaryUiState(
 class MatchSummaryViewModel @Inject constructor(
     private val matchSessionService: MatchSessionService,
     private val rematchStore: RematchStore,
+    private val playerRepository: PlayerRepository,
     private val settingsRepository: SettingsRepository,
     private val feedback: FeedbackServices,
+    private val logger: AppLogger,
     private val json: Json,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MatchSummaryUiState())
     val uiState: StateFlow<MatchSummaryUiState> = _uiState.asStateFlow()
+    private var analyticsLoggedForMatchId: String? = null
 
     fun load(matchId: String) {
         viewModelScope.launch {
@@ -61,6 +70,10 @@ class MatchSummaryViewModel @Inject constructor(
             val ids = json.decodeFromString<List<String>>(entity.participantIdsJson)
             val type = MatchType.valueOf(entity.matchType)
             val config = json.decodeFromString<MatchConfigPayload>(entity.configJson)
+            val setsEnabled = when (type) {
+                MatchType.X01 -> (config as MatchConfigPayload.X01).config.setsEnabled
+                MatchType.Cricket -> (config as MatchConfigPayload.Cricket).config.setsEnabled
+            }
             val stats = when (type) {
                 MatchType.X01 -> {
                     val x01Config = (config as MatchConfigPayload.X01).config
@@ -114,10 +127,41 @@ class MatchSummaryViewModel @Inject constructor(
                 forfeiterName = if (forfeiterIndex >= 0) names[forfeiterIndex] else null,
                 isForfeited = isForfeited,
                 playerStats = stats,
+                setsEnabled = setsEnabled,
             )
             if (winnerName != null && !isForfeited) {
                 val settings = settingsRepository.get()
                 feedback.summaryCelebration(settings.hapticsEnabled)
+            }
+            if (analyticsLoggedForMatchId != entity.id) {
+                analyticsLoggedForMatchId = entity.id
+                val config = runCatching {
+                    json.decodeFromString<MatchConfigPayload>(entity.configJson)
+                }.getOrNull()
+                if (config != null) {
+                    val players = ids.mapNotNull { playerRepository.getById(it) }
+                    val metadata = MatchAnalytics.metadata(
+                        matchType = type,
+                        config = config,
+                        participantCount = ids.size,
+                        players = players,
+                        forfeited = isForfeited,
+                    )
+                    logger.info(
+                        LogCategory.SCORING,
+                        eventName = "match_completed",
+                        message = "Match completed.",
+                        metadata = metadata,
+                        correlationId = entity.id,
+                    )
+                    logger.info(
+                        LogCategory.SCORING,
+                        eventName = "game_mode_completed",
+                        message = "Game mode completed.",
+                        metadata = metadata,
+                        correlationId = entity.id,
+                    )
+                }
             }
         }
     }

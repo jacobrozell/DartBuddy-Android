@@ -5,4 +5,5 @@ object AppLinks {
     const val PRIVACY = "https://jacobrozell.github.io/Dart-Buddy/privacy.html"
     const val ACCESSIBILITY = "https://jacobrozell.github.io/Dart-Buddy/accessibility.html"
     const val FEEDBACK_EMAIL = "jacob.rozell83@gmail.com"
+    const val PLAY_STORE = "https://play.google.com/store/apps/details?id=com.jacobrozell.dartbuddy"
 }

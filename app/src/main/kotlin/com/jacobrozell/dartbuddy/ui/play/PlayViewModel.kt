@@ -21,6 +21,12 @@ import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.model.X01CheckInMode
 import com.jacobrozell.dartbuddy.domain.model.X01CheckoutMode
 import com.jacobrozell.dartbuddy.domain.model.X01LegFormat
+import com.jacobrozell.dartbuddy.support.logging.AppLogger
+import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.MatchAnalytics
+import com.jacobrozell.dartbuddy.support.logging.error
+import com.jacobrozell.dartbuddy.support.logging.info
+import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.support.L10n
 import com.jacobrozell.dartbuddy.support.MatchConfigText
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -56,6 +62,7 @@ data class PlayUiState(
     val randomOrder: Boolean = false,
     val isStarting: Boolean = false,
     val errorMessage: String? = null,
+    val rematchErrorMessage: String? = null,
 ) {
     val selectedPlayers: List<PlayerSummary>
         get() = selectedPlayerIds.mapNotNull { id -> players.find { it.id == id } }
@@ -80,12 +87,15 @@ class PlayViewModel @Inject constructor(
     private val matchRepository: MatchRepository,
     private val settingsRepository: SettingsRepository,
     private val rematchStore: RematchStore,
+    private val practiceSetupStore: com.jacobrozell.dartbuddy.data.prefs.PracticeSetupStore,
+    private val logger: AppLogger,
     private val l10n: L10n,
     private val json: Json,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlayUiState())
     val uiState: StateFlow<PlayUiState> = _uiState.asStateFlow()
+    private var pendingStartSource: String? = null
 
     init {
         viewModelScope.launch {
@@ -93,13 +103,6 @@ class PlayViewModel @Inject constructor(
             _uiState.update { it.applySettingsDefaults(settings).copy(setupMode = settings.defaultMatchType) }
             if (playerRepository.observeActivePlayers().first().isEmpty()) {
                 playerRepository.create("Player 1")
-            }
-            rematchStore.pendingPlayerIds?.let { ids ->
-                _uiState.update { it.copy(selectedPlayerIds = ids) }
-                rematchStore.pendingMatchType?.let { type ->
-                    _uiState.update { it.copy(setupMode = MatchType.valueOf(type)) }
-                }
-                rematchStore.clear()
             }
         }
         viewModelScope.launch {
@@ -195,10 +198,19 @@ class PlayViewModel @Inject constructor(
     fun updateCricketSetsToWin(sets: Int) = _uiState.update { it.copy(cricketSetsToWin = sets.coerceAtLeast(1)) }
     fun updateCricketLegFormat(format: X01LegFormat) = _uiState.update { it.copy(cricketLegFormat = format) }
 
-    fun addPlayer(name: String) {
+    fun addPlayer(
+        name: String,
+        colorToken: String? = null,
+        avatarStyleRaw: String? = null,
+    ) {
         viewModelScope.launch {
-            val created = playerRepository.create(name)
-            _uiState.update { it.copy(selectedPlayerIds = it.selectedPlayerIds + created.id) }
+            val created = playerRepository.create(name, colorToken, avatarStyleRaw)
+            _uiState.update {
+                it.copy(
+                    selectedPlayerIds = it.selectedPlayerIds + created.id,
+                    rematchErrorMessage = null,
+                )
+            }
         }
     }
 
@@ -266,7 +278,8 @@ class PlayViewModel @Inject constructor(
                 }
                 val ids = ordered.map { it.id }
                 val names = ordered.map { it.name }
-                val entity = when (state.setupMode) {
+                val startSource = pendingStartSource ?: "setup"
+                val (entity, configPayload) = when (state.setupMode) {
                     MatchType.X01 -> {
                         val config = MatchConfigX01(
                             startScore = state.x01StartScore,
@@ -277,13 +290,14 @@ class PlayViewModel @Inject constructor(
                             checkInMode = state.x01CheckInMode,
                             legFormat = state.x01LegFormat,
                         )
+                        val payload = MatchConfigPayload.X01(config)
                         matchRepository.startMatch(
                             MatchType.X01,
-                            MatchConfigPayload.X01(config),
+                            payload,
                             ids,
                             names,
                             json.encodeToString(X01Engine.makeInitialState(config, ids)),
-                        )
+                        ) to payload
                     }
                     MatchType.Cricket -> {
                         val config = MatchConfigCricket(
@@ -294,15 +308,30 @@ class PlayViewModel @Inject constructor(
                             setsToWin = if (state.cricketSetsEnabled) state.cricketSetsToWin else null,
                             legFormat = state.cricketLegFormat,
                         )
+                        val payload = MatchConfigPayload.Cricket(config)
                         matchRepository.startMatch(
                             MatchType.Cricket,
-                            MatchConfigPayload.Cricket(config),
+                            payload,
                             ids,
                             names,
                             json.encodeToString(CricketEngine.makeInitialState(config, ids)),
-                        )
+                        ) to payload
                     }
                 }
+                val analyticsMetadata = MatchAnalytics.metadata(
+                    matchType = state.setupMode,
+                    config = configPayload,
+                    participantCount = ids.size,
+                    players = ordered,
+                    startSource = startSource,
+                )
+                logger.info(
+                    LogCategory.UI,
+                    eventName = "match_setup_start",
+                    message = "User started match setup.",
+                    metadata = analyticsMetadata,
+                    correlationId = entity.id,
+                )
                 settingsRepository.save(
                     state.settings.copy(
                         defaultX01StartScore = state.x01StartScore,
@@ -316,12 +345,95 @@ class PlayViewModel @Inject constructor(
                         defaultCricketScoringMode = state.cricketScoringMode,
                     ),
                 )
+                logger.info(
+                    LogCategory.SCORING,
+                    eventName = "match_started",
+                    message = "Match started.",
+                    metadata = analyticsMetadata,
+                    correlationId = entity.id,
+                )
+                logger.info(
+                    LogCategory.SCORING,
+                    eventName = "game_mode_played",
+                    message = "Game mode played.",
+                    metadata = analyticsMetadata,
+                    correlationId = entity.id,
+                )
+                pendingStartSource = null
                 onStarted(state.setupMode, entity.id)
             } catch (e: Exception) {
+                logger.error(
+                    LogCategory.UI,
+                    eventName = "match_start_failed",
+                    message = e.message ?: "Match start failed.",
+                    metadata = mapOf("matchType" to _uiState.value.setupMode.name.lowercase()),
+                )
                 _uiState.update { it.copy(errorMessage = e.message) }
             } finally {
                 _uiState.update { it.copy(isStarting = false) }
             }
         }
+    }
+
+    /** Applies rematch / training-practice payloads when returning to Play (ViewModel may already exist). */
+    fun consumePendingNavigationSetup() {
+        rematchStore.pendingPlayerIds?.let { ids ->
+            val matchType = rematchStore.pendingMatchType?.let { type ->
+                runCatching { MatchType.valueOf(type) }.getOrNull()
+            }
+            rematchStore.clear()
+
+            val activeIds = ids.filter { id ->
+                _uiState.value.players.any { it.id == id && !it.isArchived }
+            }
+            val rosterValid = activeIds.isNotEmpty() &&
+                !(matchType == MatchType.Cricket && activeIds.size < 2)
+
+            if (!rosterValid) {
+                logger.error(
+                    LogCategory.UI,
+                    eventName = "rematch_roster_invalid",
+                    message = "Rematch roster could not be restored.",
+                    metadata = mapOf(
+                        "requestedCount" to ids.size.toString(),
+                        "availableCount" to activeIds.size.toString(),
+                        "matchType" to (matchType?.name?.lowercase() ?: "unknown"),
+                    ),
+                )
+                _uiState.update {
+                    it.copy(rematchErrorMessage = l10n.get(R.string.play_summary_rematch_failed))
+                }
+                return
+            }
+
+            _uiState.update {
+                it.copy(
+                    selectedPlayerIds = activeIds,
+                    setupMode = matchType ?: it.setupMode,
+                    rematchErrorMessage = null,
+                )
+            }
+            pendingStartSource = "rematch"
+            return
+        }
+        practiceSetupStore.consume()?.let { setup ->
+            _uiState.update {
+                it.copy(
+                    selectedPlayerIds = listOf(setup.humanId, setup.trainingBotId),
+                    setupMode = setup.mode,
+                )
+            }
+            pendingStartSource = "setup"
+        }
+    }
+
+    fun clearRematchError() = _uiState.update { it.copy(rematchErrorMessage = null) }
+
+    fun logPlayHomeReady(hasActiveMatch: Boolean) {
+        logger.info(
+            LogCategory.UI,
+            eventName = if (hasActiveMatch) "play_home_active_match" else "play_home_ready",
+            message = if (hasActiveMatch) "Play home shows active match." else "Play home ready.",
+        )
     }
 }

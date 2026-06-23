@@ -41,10 +41,10 @@ Base: `dartbuddy://v1/{path}`
 | `/tab/settings` | Settings tab | ✅ |
 | `/play` | Play tab home | ✅ |
 | `/play/resume` | Play tab + resume active match | ✅ |
-| `/play/setup` | Play setup | ⬜ |
-| `/play/match/{id}` | Active match | ⬜ |
-| `/activity/history/match/{id}` | History detail | ⬜ |
-| `/players/{id}` | Player detail | ⬜ |
+| `/play/setup` | Play setup | ✅ |
+| `/play/match/{id}` | Active match | ✅ |
+| `/activity/history/match/{id}` | History detail | ✅ |
+| `/players/{id}` | Player detail | ✅ |
 
 **Aliases:** `dartbuddy://play` should normalize to `dartbuddy://v1/play` (implement in parser if not already).
 

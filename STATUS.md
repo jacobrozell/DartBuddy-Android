@@ -23,7 +23,7 @@
 | **Stack** | Kotlin · Jetpack Compose · Hilt · Room · minSdk **36** |
 | **iOS reference** | `Dart-Buddy/` on `master`, lean 1.0 surface |
 | **Build** | `./gradlew assembleDebug test` — **passing** |
-| **Unit tests** | 10 test classes under `app/src/test/` (engines, bots, onboarding, activity filters, forfeit resolver) |
+| **Unit tests** | 11 test classes incl. `GameplayLayoutTest` (14 layout cases) |
 
 ---
 
@@ -33,16 +33,16 @@
 |------|-----|--------|
 | App shell & navigation | 90% | 4 tabs, deep links, active-match badge, splash drawable |
 | Play setup | 92% | Wide layout, bots, validation, resume banner |
-| X01 / Cricket match | 95% | Pad, bots, sounds, TTS, check-in, forfeit sheets |
-| Match summary | 85% | Trophy, haptic, undo, rematch; no landscape split |
+| X01 / Cricket match | 98% | Pad, bots, phone-landscape side-by-side, cricket transposed board, AX scroll |
+| Match summary | 94% | Phone-landscape split only; tablet stacked |
 | Onboarding (7 steps) | 95% | Full flow + replay; no analytics |
 | Players | 80% | Search, detail, archive, custom bots; simplified avatars |
-| Activity | 75% | History + stats segment, filters, load-more; no charts/timeline |
-| Settings | 88% | Defaults, appearance, bots, help + a11y link, reset |
-| Platform (Firebase, etc.) | 15% | Deep links ✅; Firebase ⬜ |
-| Visual polish / motion | 70% | Key motions shipped; iPad layouts partial |
+| Activity | 88% | History + stats segment, filters, charts, sector hits, timeline |
+| Settings | 92% | Match defaults section, localized chips |
+| Platform (Firebase, etc.) | 75% | Analytics + Crashlytics wired (release builds) |
+| Visual polish / motion | 82% | Splash dartboard backdrop, summary landscape split, drag reorder |
 
-**Overall lean 1.0 parity: ~85%** — functional gaps are small; most remaining work is polish, tablet layouts, rich stats, and platform integration.
+**Overall lean 1.0 parity: ~96%** — adaptive layout complete; Play Store pipeline and splash art remain.
 
 ---
 
@@ -66,16 +66,11 @@ Ordered by impact for reaching “store-quality lean 1.0”:
 
 | Priority | Item | Notes |
 |----------|------|-------|
-| P0 | **Firebase** Analytics + Crashlytics | Needs `google-services.json`, Gradle plugin, event parity |
-| P1 | **Turn order drag-to-reorder** | Android uses up/down buttons |
-| P1 | **Rich Activity detail** | Sector breakdown, expandable event timeline |
-| P1 | **iPad / tablet layouts** | Wide score cards, split summary, cricket board variants |
-| P2 | **Localized chip labels** | `OptionLabels.kt` exists; not wired everywhere |
-| P2 | **Full launch splash art** | iOS PNG dartboard export; Android uses drawable + launcher foreground |
-| P2 | **Statistics charts** | Aggregate table only, no charts |
-| P3 | **App Store / Play update prompts** | iOS has update offer; Android N/A |
-| P3 | **Dedicated AX layouts** | Compose scale + strings; no alternate layouts |
-| P3 | **Analytics events** | Onboarding, match lifecycle (blocked on Firebase) |
+| P0 | **Edge-to-edge insets** | ✅ `AppInsets.kt` |
+| P0 | **Play Store** pipeline (signing, listing, tracks) | `specs/PlayConsoleSpec.md` — needs signing keys |
+| P1 | **LayoutContext + adaptive layouts** | ✅ `GameplayLayout.kt`, cricket transposed board, AX pad |
+| P2 | **Full launch splash art** | iOS PNG dartboard export |
+| P3 | **Analytics events** | `turn_submitted`, onboarding |
 
 ---
 
@@ -177,6 +172,9 @@ Deep link host: `dartbuddy://v1/<path>` → tab routes (`play`, `players`, `acti
 - [ ] Activity → history detail → delete match
 - [ ] Settings → replay onboarding; reset all data
 - [ ] Deep link `dartbuddy://v1/players` after onboarding
+- [ ] Phone landscape X01 — side-by-side board + pad; tablet portrait — stacked full-width pad
+- [ ] Cricket phone landscape — transposed active-player board
+- [ ] Large display font — accessibility match scroll layout; 4-column number pad
 
 Emulator screenshots (when captured): `.emulator-screenshots/`
 
@@ -190,7 +188,7 @@ Emulator screenshots (when captured): `.emulator-screenshots/`
 | [`README.md`](README.md) | Setup, MCP, architecture intro |
 | [`specs/README.md`](specs/README.md) | Android implementation specs (behavior in `dart-buddy-ios/specs/`) |
 | [`docs/releases/README.md`](docs/releases/README.md) | Release branch model |
-| Workspace `docs/projects/dart-buddy-android.md` | Personal monorepo project status (local) |
+| Workspace `workspace/projects/dart-buddy-android.md` | Personal monorepo project status (local) |
 
 ---
 
@@ -201,4 +199,4 @@ Emulator screenshots (when captured): `.emulator-screenshots/`
 | 2026-06-22 | Forfeit multi-step sheets, Activity resume banner + load-more, summary undo, splash drawable, a11y link, leg-win animation |
 | 2026-06-22 | Settings/onboarding 101–601 start scores, tab filled icons, resume motion, validation UX |
 | 2026-06-22 | Play setup layout fix, check-in UX, bundled sounds + TTS |
-| 2026-06-23 | Split to `DartBuddy-Android` repo; CI + release branch docs |
+| 2026-06-23 | Firebase Analytics/Crashlytics, rich Activity stats (charts, sector hits, timeline), drag reorder, add-player sheet, localized chips, match defaults |

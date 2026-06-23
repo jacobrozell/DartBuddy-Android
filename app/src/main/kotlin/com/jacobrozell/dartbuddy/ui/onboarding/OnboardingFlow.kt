@@ -3,6 +3,8 @@ package com.jacobrozell.dartbuddy.ui.onboarding
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -13,8 +15,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -69,9 +73,13 @@ import com.jacobrozell.dartbuddy.domain.onboarding.onboardingOrder
 import com.jacobrozell.dartbuddy.domain.onboarding.onboardingSliderIndex
 import com.jacobrozell.dartbuddy.domain.onboarding.showsOnboardingRulesIntro
 import com.jacobrozell.dartbuddy.support.AppLinks
+import com.jacobrozell.dartbuddy.support.MotionPreferences
+import com.jacobrozell.dartbuddy.ui.layout.formImeInsets
+import com.jacobrozell.dartbuddy.ui.layout.stickyFooterInsets
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
+import com.jacobrozell.dartbuddy.ui.designsystem.rememberOptionLabelMaps
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
 import com.jacobrozell.dartbuddy.ui.players.BotDifficultyStatsSection
@@ -90,11 +98,19 @@ fun OnboardingFlow(
 
     val dark = isSystemInDarkTheme()
     val background = if (dark) Brand.BackgroundDark else Brand.BackgroundLight
+    val context = LocalContext.current
+    val reduceMotion = MotionPreferences.prefersReducedMotion(context)
 
     Surface(modifier = Modifier.fillMaxSize(), color = background) {
         AnimatedContent(
             targetState = state.step,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            transitionSpec = {
+                if (reduceMotion) {
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    fadeIn() togetherWith fadeOut()
+                }
+            },
             label = "onboarding_step",
         ) { step ->
             when (step) {
@@ -161,6 +177,7 @@ private fun OnboardingStepScaffold(
 
     Scaffold(
         containerColor = background,
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = {
@@ -190,7 +207,12 @@ private fun OnboardingStepScaffold(
             )
         },
         bottomBar = {
-            Box(Modifier.fillMaxWidth().padding(horizontal = DS.s4, vertical = DS.s4)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .stickyFooterInsets()
+                    .padding(horizontal = DS.s4, vertical = DS.s4),
+            ) {
                 footer()
             }
         },
@@ -199,6 +221,7 @@ private fun OnboardingStepScaffold(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .formImeInsets()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = DS.s4),
             verticalArrangement = Arrangement.spacedBy(DS.s4),
@@ -323,6 +346,7 @@ private fun OnboardingPreferencesStep(
     onUpdate: ((com.jacobrozell.dartbuddy.data.repository.AppSettings) -> com.jacobrozell.dartbuddy.data.repository.AppSettings) -> Unit,
     onContinue: () -> Unit,
 ) {
+    val labels = rememberOptionLabelMaps()
     val appearanceOptions = listOf("system", "light", "dark")
     val appearanceLabels = mapOf(
         "system" to stringResource(R.string.settings_appearance_system),
@@ -332,20 +356,6 @@ private fun OnboardingPreferencesStep(
     val modeLabels = mapOf(
         MatchType.X01 to stringResource(R.string.play_mode_x01),
         MatchType.Cricket to stringResource(R.string.play_mode_cricket),
-    )
-    val checkoutLabels = mapOf(
-        X01CheckoutMode.SingleOut to stringResource(R.string.x01_checkout_straightOut),
-        X01CheckoutMode.DoubleOut to stringResource(R.string.x01_checkout_doubleOut),
-        X01CheckoutMode.MasterOut to stringResource(R.string.x01_checkout_masterOut),
-    )
-    val checkInLabels = mapOf(
-        X01CheckInMode.StraightIn to stringResource(R.string.x01_checkin_straightIn),
-        X01CheckInMode.DoubleIn to stringResource(R.string.x01_checkin_doubleIn),
-        X01CheckInMode.MasterIn to stringResource(R.string.x01_checkin_masterIn),
-    )
-    val legFormatLabels = mapOf(
-        X01LegFormat.FirstTo to stringResource(R.string.x01_legFormat_firstTo),
-        X01LegFormat.BestOf to stringResource(R.string.x01_legFormat_bestOf),
     )
 
     OnboardingStepScaffold(
@@ -370,7 +380,7 @@ private fun OnboardingPreferencesStep(
                 options = MatchType.entries,
                 selected = settings.defaultMatchType,
                 onSelect = { onUpdate { s -> s.copy(defaultMatchType = it) } },
-                labelFor = { modeLabels[it] ?: it.name },
+                labelFor = { modeLabels[it] ?: labels.matchType(it) },
             )
         }
         SetupSectionCard {
@@ -385,21 +395,21 @@ private fun OnboardingPreferencesStep(
                 options = X01CheckoutMode.entries,
                 selected = settings.defaultX01CheckoutMode,
                 onSelect = { onUpdate { s -> s.copy(defaultX01CheckoutMode = it) } },
-                labelFor = { checkoutLabels[it] ?: it.name },
+                labelFor = labels.checkout,
             )
             HorizontalOptionChips(
                 label = stringResource(R.string.settings_label_checkin),
                 options = X01CheckInMode.entries,
                 selected = settings.defaultX01CheckInMode,
                 onSelect = { onUpdate { s -> s.copy(defaultX01CheckInMode = it) } },
-                labelFor = { checkInLabels[it] ?: it.name },
+                labelFor = labels.checkIn,
             )
             HorizontalOptionChips(
                 label = stringResource(R.string.settings_label_leg_format),
                 options = X01LegFormat.entries,
                 selected = settings.defaultLegFormat,
                 onSelect = { onUpdate { s -> s.copy(defaultLegFormat = it) } },
-                labelFor = { legFormatLabels[it] ?: it.name },
+                labelFor = labels.legFormat,
             )
             HorizontalOptionChips(
                 label = stringResource(R.string.settings_label_legs_to_win),

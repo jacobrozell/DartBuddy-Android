@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jacobrozell.dartbuddy.R
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 @Composable
@@ -112,6 +114,11 @@ fun MatchFeedbackBanner(
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "feedbackBannerScale",
     )
+    val bannerTestTag = when (style) {
+        MatchFeedbackBannerStyle.LegWin -> AccessibilityIds.LEG_WON_BANNER
+        MatchFeedbackBannerStyle.Error -> AccessibilityIds.BUST_BANNER
+        MatchFeedbackBannerStyle.CheckIn -> null
+    }
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn() + expandVertically(),
@@ -121,7 +128,8 @@ fun MatchFeedbackBanner(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .scale(if (style == MatchFeedbackBannerStyle.LegWin) scale else 1f),
+                .scale(if (style == MatchFeedbackBannerStyle.LegWin) scale else 1f)
+                .then(if (bannerTestTag != null) Modifier.a11yId(bannerTestTag) else Modifier),
             shape = RoundedCornerShape(10.dp),
             color = background,
         ) {

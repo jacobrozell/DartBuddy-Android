@@ -4,41 +4,40 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Icon
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.sp
+import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 
-@Composable
+@androidx.compose.runtime.Composable
 fun PlayerAvatar(
     name: String,
     colorToken: String?,
     playerId: String,
     size: Dp,
+    avatarStyleRaw: String? = null,
+    isBot: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val token = PlayerColorToken.resolve(colorToken ?: PlayerColorToken.defaultForPlayer(playerId).raw)
-    val initial = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+    val style = PlayerAvatarStyle.resolve(
+        avatarStyleRaw ?: PlayerAvatarStyle.defaultForPlayer(playerId, isBot).raw,
+    )
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
             .background(token.color),
-        contentAlignment = Alignment.Center,
+        contentAlignment = androidx.compose.ui.Alignment.Center,
     ) {
-        Text(
-            text = initial,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = (size.value * 0.42f).sp,
-            style = MaterialTheme.typography.labelLarge,
+        Icon(
+            imageVector = style.icon,
+            contentDescription = name,
+            tint = Color.White,
+            modifier = Modifier.size(size * 0.48f),
         )
     }
 }

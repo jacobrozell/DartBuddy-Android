@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.ui.components.BotTurnBanner
 import com.jacobrozell.dartbuddy.ui.components.CricketBoardView
+import com.jacobrozell.dartbuddy.ui.components.CricketTransposedBoardView
 import com.jacobrozell.dartbuddy.ui.components.CricketTapPad
 import com.jacobrozell.dartbuddy.ui.components.ForfeitFlowSheets
 import com.jacobrozell.dartbuddy.ui.components.MatchExitDialog
@@ -25,6 +26,8 @@ import com.jacobrozell.dartbuddy.ui.components.MatchFeedbackBanner
 import com.jacobrozell.dartbuddy.ui.components.MatchGameplayHeader
 import com.jacobrozell.dartbuddy.ui.components.MatchScoringBody
 import com.jacobrozell.dartbuddy.ui.components.cricketSegmentFromPad
+import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
+import com.jacobrozell.dartbuddy.ui.layout.usesTransposedCricketBoardLayout
 
 @Composable
 fun CricketMatchScreen(
@@ -59,6 +62,10 @@ fun CricketMatchScreen(
         session.state.roundIndex + 1,
         session.state.currentPlayerIndex + 1,
     )
+    val layout = rememberLayoutContext(playerCount = state.participantNames.size)
+    val transposedBoard = usesTransposedCricketBoardLayout(layout)
+    val boardColumns = viewModel.boardColumns()
+    val activeColumn = boardColumns.firstOrNull { it.isActive }
 
     androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
         MatchGameplayHeader(
@@ -71,7 +78,14 @@ fun CricketMatchScreen(
         MatchScoringBody(
             playerCount = state.participantNames.size,
             scoreboard = {
-                CricketBoardView(columns = viewModel.boardColumns())
+                if (transposedBoard && activeColumn != null) {
+                    CricketTransposedBoardView(
+                        column = activeColumn,
+                        allColumns = boardColumns,
+                    )
+                } else {
+                    CricketBoardView(columns = boardColumns)
+                }
                 state.errorMessage?.let { MatchFeedbackBanner(it) }
             },
             pad = {

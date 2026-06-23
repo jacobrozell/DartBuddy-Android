@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PlayerDao {
+    @Query("SELECT * FROM players WHERE linkedPlayerId = :humanId AND botKindRaw = 'training' LIMIT 1")
+    suspend fun getTrainingBotFor(humanId: String): PlayerEntity?
+
     @Query("SELECT * FROM players WHERE isArchived = 0 ORDER BY name COLLATE NOCASE ASC")
     fun observeActivePlayers(): Flow<List<PlayerEntity>>
 

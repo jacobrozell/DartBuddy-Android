@@ -17,13 +17,15 @@ import com.jacobrozell.dartbuddy.domain.service.MatchForfeitResolver
 import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.ui.components.CricketBoardColumn
 import com.jacobrozell.dartbuddy.ui.theme.PlayerColors
-import dagger.hilt.android.lifecycle.HiltViewModel
+import com.jacobrozell.dartbuddy.domain.service.MatchTurnSupport
+import com.jacobrozell.dartbuddy.support.logging.AppLogger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -54,6 +56,7 @@ class CricketMatchViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
     private val settingsRepository: SettingsRepository,
     private val feedback: FeedbackServices,
+    private val logger: AppLogger,
     private val json: Json,
 ) : ViewModel() {
 
@@ -113,7 +116,23 @@ class CricketMatchViewModel @Inject constructor(
         if (next.size == 3) submitTurnInternal()
     }
 
-    fun undoDart() = _uiState.update { it.copy(currentDarts = it.currentDarts.dropLast(1)) }
+    fun undoDart() {
+        val session = _uiState.value.session ?: return
+        if (_uiState.value.currentDarts.isEmpty()) return
+        _uiState.update { it.copy(currentDarts = it.currentDarts.dropLast(1)) }
+        MatchTurnSupport.logDartUndone(
+            logger,
+            session.entity.id,
+            MatchType.Cricket,
+            MatchTurnSupport.progressMetadata(
+                MatchType.Cricket,
+                session.events.size,
+                session.state.legIndex,
+                session.state.setIndex,
+                session.entity.status,
+            ),
+        )
+    }
 
     fun submitTurn(onComplete: (String) -> Unit) = submitTurnInternal(onComplete)
 
@@ -124,6 +143,7 @@ class CricketMatchViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val updated = matchSessionService.submitCricketTurn(session, current.currentDarts)
+                MatchTurnSupport.logTurnSubmitted(logger, session.entity.id, updated)
                 val matchComplete = updated.state.isComplete
                 val visitTotal = updated.events.lastOrNull()?.totalPointsAdded
                 if (matchComplete) {
@@ -139,6 +159,12 @@ class CricketMatchViewModel @Inject constructor(
                     scheduleBotTurnIfNeeded(onComplete)
                 }
             } catch (e: Exception) {
+                MatchTurnSupport.logTurnPersistFailed(
+                    logger,
+                    session.entity.id,
+                    MatchType.Cricket,
+                    e.message ?: "Turn persist failed.",
+                )
                 _uiState.update { it.copy(errorMessage = e.message) }
             }
         }
@@ -150,9 +176,30 @@ class CricketMatchViewModel @Inject constructor(
         val session = state.session ?: return
         botTurnJob?.cancel()
         viewModelScope.launch {
-            matchSessionService.undoLastCricketTurn(session)?.let { updated ->
-                _uiState.update { it.copy(session = updated, currentDarts = emptyList()) }
-                scheduleBotTurnIfNeeded()
+            try {
+                matchSessionService.undoLastCricketTurn(session)?.let { updated ->
+                    MatchTurnSupport.logTurnUndone(
+                        logger,
+                        session.entity.id,
+                        MatchType.Cricket,
+                        MatchTurnSupport.progressMetadata(
+                            MatchType.Cricket,
+                            updated.events.size,
+                            updated.state.legIndex,
+                            updated.state.setIndex,
+                            updated.entity.status,
+                        ),
+                    )
+                    _uiState.update { it.copy(session = updated, currentDarts = emptyList()) }
+                    scheduleBotTurnIfNeeded()
+                }
+            } catch (e: Exception) {
+                MatchTurnSupport.logTurnUndoFailed(
+                    logger,
+                    session.entity.id,
+                    MatchType.Cricket,
+                    e.message ?: "Undo failed.",
+                )
             }
         }
     }
@@ -176,7 +223,7 @@ class CricketMatchViewModel @Inject constructor(
                 if (state.participantIsBot[playerId] != true) return@launch
 
                 val player = playerRepository.getById(playerId) ?: return@launch
-                val profile = BotTurnCoordinator.skillProfileFor(player, MatchType.Cricket) ?: return@launch
+                val profile = playerRepository.resolveBotSkillProfile(playerId, MatchType.Cricket) ?: return@launch
 
                 _uiState.update { it.copy(isBotTurnActive = true) }
                 BotTurnCoordinator.thinkDelay()
@@ -199,6 +246,7 @@ class CricketMatchViewModel @Inject constructor(
 
                 try {
                     val updated = matchSessionService.submitCricketTurn(session, darts)
+                    MatchTurnSupport.logTurnSubmitted(logger, session.entity.id, updated)
                     val matchComplete = updated.state.isComplete
                     val visitTotal = updated.events.lastOrNull()?.totalPointsAdded
                     if (matchComplete) {

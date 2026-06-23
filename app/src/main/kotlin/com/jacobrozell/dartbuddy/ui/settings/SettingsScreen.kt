@@ -2,8 +2,12 @@ package com.jacobrozell.dartbuddy.ui.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -35,12 +39,17 @@ import com.jacobrozell.dartbuddy.domain.model.X01CheckInMode
 import com.jacobrozell.dartbuddy.domain.model.X01CheckoutMode
 import com.jacobrozell.dartbuddy.domain.model.X01StartScores
 import com.jacobrozell.dartbuddy.domain.model.X01LegFormat
+import androidx.compose.foundation.layout.Row
 import com.jacobrozell.dartbuddy.ui.designsystem.BrandRootScreenTitle
+import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
+import com.jacobrozell.dartbuddy.ui.designsystem.rememberOptionLabelMaps
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
 import com.jacobrozell.dartbuddy.ui.designsystem.TabRootScaffold
 import com.jacobrozell.dartbuddy.ui.play.rules.GameRulesSheet
+import com.jacobrozell.dartbuddy.support.state.AppAppearancePolicy
 import com.jacobrozell.dartbuddy.ui.theme.Brand
+import com.jacobrozell.dartbuddy.ui.theme.DartBuddyTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -84,36 +93,18 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     var showRulesSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
+    val labels = rememberOptionLabelMaps()
     val appearanceOptions = listOf(
         AppearanceOption("system", R.string.settings_appearance_system),
         AppearanceOption("light", R.string.settings_appearance_light),
         AppearanceOption("dark", R.string.settings_appearance_dark),
     )
     val appearanceLabels = appearanceOptions.associate { it.raw to stringResource(it.labelRes) }
-    val checkoutLabels = mapOf(
-        X01CheckoutMode.SingleOut to stringResource(R.string.x01_checkout_straightOut),
-        X01CheckoutMode.DoubleOut to stringResource(R.string.x01_checkout_doubleOut),
-        X01CheckoutMode.MasterOut to stringResource(R.string.x01_checkout_masterOut),
-    )
-    val checkInLabels = mapOf(
-        X01CheckInMode.StraightIn to stringResource(R.string.x01_checkin_straightIn),
-        X01CheckInMode.DoubleIn to stringResource(R.string.x01_checkin_doubleIn),
-        X01CheckInMode.MasterIn to stringResource(R.string.x01_checkin_masterIn),
-    )
-    val legFormatLabels = mapOf(
-        X01LegFormat.FirstTo to stringResource(R.string.x01_legFormat_firstTo),
-        X01LegFormat.BestOf to stringResource(R.string.x01_legFormat_bestOf),
-    )
-    val scoringLabels = mapOf(
-        CricketScoringMode.Standard to stringResource(R.string.play_cricket_mode_normal),
-        CricketScoringMode.CutThroat to stringResource(R.string.play_cricket_mode_cutThroat),
-    )
-    val modeLabels = mapOf(
-        MatchType.X01 to stringResource(R.string.play_x01_title),
-        MatchType.Cricket to stringResource(R.string.play_cricket_title),
-    )
+    val usesBrandSettingsChrome = AppAppearancePolicy.settingsUsesBrandPalette(settings.appearanceMode)
 
-    TabRootScaffold {
+    DartBuddyTheme(darkTheme = usesBrandSettingsChrome || isSystemInDarkTheme()) {
+    TabRootScaffold(forceBrandDarkBackground = usesBrandSettingsChrome) {
+        Column(Modifier.a11yId(AccessibilityIds.SETTINGS_FORM)) {
         BrandRootScreenTitle(title = stringResource(R.string.settings_title))
 
         Text(stringResource(R.string.settings_appearance), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -130,9 +121,42 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 options = MatchType.entries,
                 selected = settings.defaultMatchType,
                 onSelect = { viewModel.update { s -> s.copy(defaultMatchType = it) } },
-                labelFor = { modeLabels[it] ?: it.name },
+                labelFor = { labels.matchType(it) },
             )
         }
+        SettingsSectionFooter(stringResource(R.string.settings_theme_footer))
+        SettingsSectionFooter(stringResource(R.string.settings_starting_mode_footer))
+
+        Text(stringResource(R.string.settings_match_defaults), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        SetupSectionCard {
+            HorizontalOptionChips(
+                label = stringResource(R.string.settings_label_leg_format),
+                options = X01LegFormat.entries,
+                selected = settings.defaultLegFormat,
+                onSelect = { viewModel.update { s -> s.copy(defaultLegFormat = it) } },
+                labelFor = labels.legFormat,
+            )
+            HorizontalOptionChips(
+                label = stringResource(R.string.settings_label_legs_to_win),
+                options = listOf(1, 2, 3, 5),
+                selected = settings.defaultLegsToWin,
+                onSelect = { viewModel.update { s -> s.copy(defaultLegsToWin = it) } },
+            )
+            ToggleSetting(
+                label = stringResource(R.string.settings_sets_enabled),
+                checked = settings.defaultSetsEnabled,
+                onCheckedChange = { viewModel.update { s -> s.copy(defaultSetsEnabled = it) } },
+            )
+            if (settings.defaultSetsEnabled) {
+                HorizontalOptionChips(
+                    label = stringResource(R.string.settings_sets_enabled),
+                    options = listOf(1, 2, 3),
+                    selected = settings.defaultSetsToWin,
+                    onSelect = { viewModel.update { s -> s.copy(defaultSetsToWin = it) } },
+                )
+            }
+        }
+        SettingsSectionFooter(stringResource(R.string.settings_match_defaults_footer))
 
         Text(stringResource(R.string.settings_defaults_x01), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
@@ -147,69 +171,78 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 options = X01CheckoutMode.entries,
                 selected = settings.defaultX01CheckoutMode,
                 onSelect = { viewModel.update { s -> s.copy(defaultX01CheckoutMode = it) } },
-                labelFor = { checkoutLabels[it] ?: it.name },
+                labelFor = labels.checkout,
             )
             HorizontalOptionChips(
                 label = stringResource(R.string.settings_label_checkin),
                 options = X01CheckInMode.entries,
                 selected = settings.defaultX01CheckInMode,
                 onSelect = { viewModel.update { s -> s.copy(defaultX01CheckInMode = it) } },
-                labelFor = { checkInLabels[it] ?: it.name },
+                labelFor = labels.checkIn,
             )
-            HorizontalOptionChips(
-                label = stringResource(R.string.settings_label_leg_format),
-                options = X01LegFormat.entries,
-                selected = settings.defaultLegFormat,
-                onSelect = { viewModel.update { s -> s.copy(defaultLegFormat = it) } },
-                labelFor = { legFormatLabels[it] ?: it.name },
-            )
-            HorizontalOptionChips(
-                label = stringResource(R.string.settings_label_legs_to_win),
-                options = listOf(1, 2, 3, 5),
-                selected = settings.defaultLegsToWin,
-                onSelect = { viewModel.update { s -> s.copy(defaultLegsToWin = it) } },
-            )
-            ToggleSetting(stringResource(R.string.settings_sets_enabled), settings.defaultSetsEnabled) {
-                viewModel.update { s -> s.copy(defaultSetsEnabled = it) }
-            }
         }
+        SettingsSectionFooter(stringResource(R.string.settings_x01_defaults_footer))
 
         Text(stringResource(R.string.settings_defaults_cricket), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
-            ToggleSetting(stringResource(R.string.settings_points_scoring), settings.defaultCricketPointsEnabled) {
-                viewModel.update { s -> s.copy(defaultCricketPointsEnabled = it) }
-            }
+            ToggleSetting(
+                label = stringResource(R.string.settings_points_scoring),
+                checked = settings.defaultCricketPointsEnabled,
+                onCheckedChange = { viewModel.update { s -> s.copy(defaultCricketPointsEnabled = it) } },
+            )
             HorizontalOptionChips(
                 label = stringResource(R.string.settings_label_scoring_mode),
                 options = CricketScoringMode.entries,
                 selected = settings.defaultCricketScoringMode,
                 onSelect = { viewModel.update { s -> s.copy(defaultCricketScoringMode = it) } },
-                labelFor = { scoringLabels[it] ?: it.name },
+                labelFor = labels.cricketScoring,
             )
         }
 
         Text(stringResource(R.string.settings_bots), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
-            ToggleSetting(stringResource(R.string.settings_bot_stagger), settings.botStaggerEnabled) {
-                viewModel.update { s -> s.copy(botStaggerEnabled = it) }
-            }
-            ToggleSetting(stringResource(R.string.settings_bot_haptics), settings.botDartHapticsEnabled) {
-                viewModel.update { s -> s.copy(botDartHapticsEnabled = it) }
-            }
+            ToggleSetting(
+                label = stringResource(R.string.settings_bot_stagger),
+                checked = settings.botStaggerEnabled,
+                testTag = AccessibilityIds.SETTINGS_BOT_STAGGER,
+                onCheckedChange = { viewModel.update { s -> s.copy(botStaggerEnabled = it) } },
+            )
+            ToggleSetting(
+                label = stringResource(R.string.settings_bot_haptics),
+                checked = settings.botDartHapticsEnabled,
+                enabled = settings.hapticsEnabled,
+                testTag = AccessibilityIds.SETTINGS_BOT_HAPTICS,
+                onCheckedChange = { viewModel.update { s -> s.copy(botDartHapticsEnabled = it) } },
+            )
         }
+        SettingsSectionFooter(stringResource(R.string.settings_bots_footer))
 
         Text(stringResource(R.string.settings_feedback), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
-            ToggleSetting(stringResource(R.string.settings_haptics), settings.hapticsEnabled) {
-                viewModel.update { s -> s.copy(hapticsEnabled = it) }
-            }
-            ToggleSetting(stringResource(R.string.settings_sound), settings.soundEnabled) {
-                viewModel.update { s -> s.copy(soundEnabled = it) }
-            }
-            ToggleSetting(stringResource(R.string.settings_turn_caller), settings.turnTotalCallerEnabled) {
-                viewModel.update { s -> s.copy(turnTotalCallerEnabled = it) }
+            ToggleSetting(
+                label = stringResource(R.string.settings_haptics),
+                checked = settings.hapticsEnabled,
+                testTag = AccessibilityIds.SETTINGS_HAPTICS,
+                onCheckedChange = { viewModel.update { s -> s.copy(hapticsEnabled = it) } },
+            )
+            ToggleSetting(
+                label = stringResource(R.string.settings_sound),
+                checked = settings.soundEnabled,
+                testTag = AccessibilityIds.SETTINGS_SOUND,
+                onCheckedChange = { viewModel.update { s -> s.copy(soundEnabled = it) } },
+            )
+            ToggleSetting(
+                label = stringResource(R.string.settings_turn_caller),
+                checked = settings.turnTotalCallerEnabled,
+                enabled = settings.soundEnabled,
+                testTag = AccessibilityIds.SETTINGS_TURN_CALLER,
+                onCheckedChange = { viewModel.update { s -> s.copy(turnTotalCallerEnabled = it) } },
+            )
+            if (!settings.soundEnabled) {
+                SettingsSectionFooter(stringResource(R.string.settings_turn_caller_footer))
             }
         }
+        SettingsSectionFooter(stringResource(R.string.settings_feedback_footer))
 
         Text(stringResource(R.string.settings_help), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
@@ -240,17 +273,18 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             ) {
                 Text(stringResource(R.string.onboarding_support_privacy), color = Brand.Green)
             }
-            TextButton(onClick = { showReplayConfirm = true }, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { showReplayConfirm = true }, modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.SETTINGS_REPLAY_ONBOARDING)) {
                 Text(stringResource(R.string.settings_replay_onboarding), color = Brand.Green)
             }
         }
 
         Text(stringResource(R.string.settings_data), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-        TextButton(onClick = { showResetConfirm = true }, modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = { showResetConfirm = true }, modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.SETTINGS_RESET_ALL)) {
             Text(stringResource(R.string.settings_resetAll), color = Brand.Red)
         }
 
         Text(stringResource(R.string.settings_version), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 
     if (showRulesSheet) {
@@ -287,12 +321,35 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
+    }
 }
 
 @Composable
-private fun ToggleSetting(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(label)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+private fun SettingsSectionFooter(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = DS.s1, end = DS.s1, bottom = DS.s2),
+    )
+}
+
+@Composable
+private fun ToggleSetting(
+    label: String,
+    checked: Boolean,
+    enabled: Boolean = true,
+    testTag: String? = null,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(if (testTag != null) Modifier.a11yId(testTag) else Modifier),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }

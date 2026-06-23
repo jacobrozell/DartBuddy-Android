@@ -57,6 +57,8 @@ iOS uses App Store lookup API. Android **lean 1.0:** no in-app Play update promp
 
 ---
 
-## 7. Tablet / foldable
+## 7. Tablet / foldable / adaptive layout
 
-Lean 1.0: phone-first Compose layouts; wide variants partial. Full tablet spec deferred — track in [`PARITY.md`](../PARITY.md).
+Lean 1.0: phone-first with partial tablet support. **Canonical plan:** [`AdaptiveLayoutSpec.md`](AdaptiveLayoutSpec.md) — edge-to-edge insets (P0), `LayoutContext` breakpoints, XS/XL/foldable matrix, iOS `GameplayLayout` parity.
+
+Track implementation in [`PARITY.md`](../PARITY.md) and [`ongoing/README.md`](../ongoing/README.md).

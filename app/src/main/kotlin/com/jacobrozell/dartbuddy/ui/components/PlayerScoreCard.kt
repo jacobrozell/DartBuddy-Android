@@ -43,6 +43,7 @@ fun PlayerScoreCard(
     average: Double,
     modifier: Modifier = Modifier,
     dartSlotAlphas: List<Float> = emptyList(),
+    useWideLayout: Boolean = false,
 ) {
     val dark = isSystemInDarkTheme()
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
@@ -69,82 +70,211 @@ fun PlayerScoreCard(
         Box(
             modifier = Modifier
                 .width(6.dp)
-                .height(88.dp)
+                .height(if (useWideLayout) 72.dp else 88.dp)
                 .background(if (isActive) accentColor else Color.Transparent),
         )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                if (isActive) {
+        if (useWideLayout) {
+            WideScoreCardBody(
+                name = name,
+                score = score,
+                setsWon = setsWon,
+                legsWon = legsWon,
+                isActive = isActive,
+                accentColor = accentColor,
+                visitDarts = visitDarts,
+                dartsThrown = dartsThrown,
+                average = average,
+                dartBox = dartBox,
+                secondary = secondary,
+                dartSlotAlphas = dartSlotAlphas,
+            )
+        } else {
+            StandardScoreCardBody(
+                name = name,
+                score = score,
+                setsWon = setsWon,
+                legsWon = legsWon,
+                isActive = isActive,
+                accentColor = accentColor,
+                visitDarts = visitDarts,
+                dartsThrown = dartsThrown,
+                average = average,
+                dartBox = dartBox,
+                secondary = secondary,
+                dartSlotAlphas = dartSlotAlphas,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StandardScoreCardBody(
+    name: String,
+    score: Int,
+    setsWon: Int,
+    legsWon: Int,
+    isActive: Boolean,
+    accentColor: Color,
+    visitDarts: List<DartInput>,
+    dartsThrown: Int,
+    average: Double,
+    dartBox: Color,
+    secondary: Color,
+    dartSlotAlphas: List<Float>,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            if (isActive) {
+                Text(
+                    stringResource(R.string.play_x01_turn_active),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor,
+                )
+            }
+            Text(
+                "$score",
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isActive) accentColor else secondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            SetsLegsLine(setsWon, legsWon, secondary)
+        }
+
+        if (isActive) {
+            VisitDartRow(visitDarts, dartBox, dartSlotAlphas)
+        }
+
+        StatsColumn(average, dartsThrown, secondary)
+    }
+}
+
+@Composable
+private fun WideScoreCardBody(
+    name: String,
+    score: Int,
+    setsWon: Int,
+    legsWon: Int,
+    isActive: Boolean,
+    accentColor: Color,
+    visitDarts: List<DartInput>,
+    dartsThrown: Int,
+    average: Double,
+    dartBox: Color,
+    secondary: Color,
+    dartSlotAlphas: List<Float>,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    if (isActive) {
+                        Text(
+                            stringResource(R.string.play_x01_turn_active),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = accentColor,
+                        )
+                    }
                     Text(
-                        stringResource(R.string.play_x01_turn_active),
-                        style = MaterialTheme.typography.labelSmall,
+                        name,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = accentColor,
+                        color = if (isActive) accentColor else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                    SetsLegsLine(setsWon, legsWon, secondary)
                 }
                 Text(
                     "$score",
-                    fontSize = 34.sp,
+                    fontSize = 30.sp,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Text(
-                    name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isActive) accentColor else secondary,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (setsWon > 0 || legsWon > 0) {
-                    Text(
-                        buildString {
-                            if (setsWon > 0) append(stringResource(R.string.play_x01_setsCountFormat, setsWon))
-                            if (legsWon > 0) {
-                                if (isNotEmpty()) append(" · ")
-                                append(stringResource(R.string.play_x01_legsCountFormat, legsWon))
-                            }
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = secondary,
-                    )
-                }
             }
-
             if (isActive) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    repeat(3) { index ->
-                        val label = visitDarts.getOrNull(index)?.compactDisplayLabel ?: "—"
-                        val slotAlpha = dartSlotAlphas.getOrElse(index) { 1f }
-                        Box(
-                            modifier = Modifier
-                                .width(38.dp)
-                                .height(38.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .alpha(slotAlpha)
-                                .background(dartBox),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(label, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    String.format("%.1f", average),
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text("3DA", style = MaterialTheme.typography.labelSmall, color = secondary)
-                Text("$dartsThrown", style = MaterialTheme.typography.labelSmall, color = secondary)
+                VisitDartRow(visitDarts, dartBox, dartSlotAlphas)
             }
         }
+        StatsColumn(average, dartsThrown, secondary)
+    }
+}
+
+@Composable
+private fun SetsLegsLine(setsWon: Int, legsWon: Int, secondary: Color) {
+    if (setsWon > 0 || legsWon > 0) {
+        Text(
+            buildString {
+                if (setsWon > 0) append(stringResource(R.string.play_x01_setsCountFormat, setsWon))
+                if (legsWon > 0) {
+                    if (isNotEmpty()) append(" · ")
+                    append(stringResource(R.string.play_x01_legsCountFormat, legsWon))
+                }
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = secondary,
+        )
+    }
+}
+
+@Composable
+private fun VisitDartRow(
+    visitDarts: List<DartInput>,
+    dartBox: Color,
+    dartSlotAlphas: List<Float>,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(3) { index ->
+            val label = visitDarts.getOrNull(index)?.compactDisplayLabel ?: "—"
+            val slotAlpha = dartSlotAlphas.getOrElse(index) { 1f }
+            Box(
+                modifier = Modifier
+                    .width(38.dp)
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .alpha(slotAlpha)
+                    .background(dartBox),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsColumn(average: Double, dartsThrown: Int, secondary: Color) {
+    Column(horizontalAlignment = Alignment.End) {
+        Text(
+            String.format("%.1f", average),
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text("3DA", style = MaterialTheme.typography.labelSmall, color = secondary)
+        Text("$dartsThrown", style = MaterialTheme.typography.labelSmall, color = secondary)
     }
 }

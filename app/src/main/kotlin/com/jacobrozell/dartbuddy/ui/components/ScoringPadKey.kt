@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 enum class ScoringPadKeyStyle {
@@ -36,6 +37,7 @@ fun ScoringPadKey(
     enabled: Boolean = true,
     selected: Boolean = false,
     accessibilityLabel: String? = null,
+    testTag: String? = null,
 ) {
     val dark = isSystemInDarkTheme()
     val keyBg = if (dark) Brand.CardElevatedDark else Brand.CardElevatedLight
@@ -60,17 +62,16 @@ fun ScoringPadKey(
     }
 
     val shape = RoundedCornerShape(10.dp)
-    val semanticsMod = if (accessibilityLabel != null) {
-        Modifier.semantics { contentDescription = accessibilityLabel }
-    } else {
-        Modifier
+    val semanticsMod = Modifier.semantics {
+        if (accessibilityLabel != null) contentDescription = accessibilityLabel
     }
+    val tagMod = if (testTag != null) Modifier.a11yId(testTag) else Modifier
 
     if (style == ScoringPadKeyStyle.Action) {
         Button(
             onClick = onClick,
             enabled = enabled,
-            modifier = modifier.then(semanticsMod),
+            modifier = modifier.then(tagMod).then(semanticsMod),
             shape = shape,
             contentPadding = PaddingValues(vertical = 14.dp),
             colors = ButtonDefaults.buttonColors(
@@ -85,7 +86,7 @@ fun ScoringPadKey(
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = modifier.then(semanticsMod),
+            modifier = modifier.then(tagMod).then(semanticsMod),
             shape = shape,
             contentPadding = PaddingValues(vertical = 12.dp),
             colors = ButtonDefaults.outlinedButtonColors(
@@ -114,6 +115,7 @@ fun RowScope.ScoringPadKeyWeight(
     enabled: Boolean = true,
     selected: Boolean = false,
     accessibilityLabel: String? = null,
+    testTag: String? = null,
 ) {
     ScoringPadKey(
         label = label,
@@ -123,5 +125,6 @@ fun RowScope.ScoringPadKeyWeight(
         enabled = enabled,
         selected = selected,
         accessibilityLabel = accessibilityLabel,
+        testTag = testTag,
     )
 }

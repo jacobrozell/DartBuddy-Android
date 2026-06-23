@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="open_play"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_open_play_short"
+        android:shortcutLongLabel="@string/shortcut_open_play_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="dartbuddy://v1/play"
+            android:targetPackage="com.jacobrozell.dartbuddy"
+            android:targetClass="com.jacobrozell.dartbuddy.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="resume_active_match"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_resume_match_short"
+        android:shortcutLongLabel="@string/shortcut_resume_match_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="dartbuddy://v1/play/resume"
+            android:targetPackage="com.jacobrozell.dartbuddy"
+            android:targetClass="com.jacobrozell.dartbuddy.MainActivity" />
+    </shortcut>
+</shortcuts>

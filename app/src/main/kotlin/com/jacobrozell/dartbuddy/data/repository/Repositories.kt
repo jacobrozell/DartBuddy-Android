@@ -13,11 +13,24 @@ import com.jacobrozell.dartbuddy.domain.model.MatchStatus
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.bots.CustomBotConfiguration
 import com.jacobrozell.dartbuddy.domain.bots.CustomBotConfigurationCodec
+import com.jacobrozell.dartbuddy.domain.bots.BotKind
+import com.jacobrozell.dartbuddy.domain.bots.BotSkillProfile
+import com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator
+import com.jacobrozell.dartbuddy.domain.bots.TrainingBotEligibilityService
+import com.jacobrozell.dartbuddy.domain.bots.TrainingBotException
+import com.jacobrozell.dartbuddy.domain.bots.TrainingBotSkillResolver
+import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
+import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
+import com.jacobrozell.dartbuddy.domain.service.MatchStatsCalculator
+import com.jacobrozell.dartbuddy.domain.service.PlayerStatsAggregator
+import kotlinx.coroutines.flow.first
 import com.jacobrozell.dartbuddy.domain.bots.CustomBotMetrics
 import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.model.X01CheckInMode
 import com.jacobrozell.dartbuddy.domain.model.X01CheckoutMode
 import com.jacobrozell.dartbuddy.domain.model.X01LegFormat
+import com.jacobrozell.dartbuddy.support.HistoryListRow
+import com.jacobrozell.dartbuddy.support.MatchHistoryCardBuilder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -37,8 +50,13 @@ data class PlayerSummary(
     val avatarStyleRaw: String? = null,
     val colorToken: String? = null,
     val notes: String? = null,
+    val linkedPlayerId: String? = null,
     val isPrimary: Boolean = false,
-)
+    val createdAtEpochMillis: Long = 0,
+    val updatedAtEpochMillis: Long = 0,
+) {
+    val isTrainingBot: Boolean get() = botKindRaw == BotKind.TRAINING
+}
 
 data class MatchSummary(
     val id: String,
@@ -74,6 +92,8 @@ data class AppSettings(
 @Singleton
 class PlayerRepository @Inject constructor(
     private val playerDao: PlayerDao,
+    private val matchRepository: MatchRepository,
+    private val matchSessionService: MatchSessionService,
     private val l10n: com.jacobrozell.dartbuddy.support.L10n,
 ) {
     fun observeActivePlayers(): Flow<List<PlayerSummary>> =
@@ -86,13 +106,19 @@ class PlayerRepository @Inject constructor(
 
     suspend fun getPrimaryPlayer(): PlayerSummary? = playerDao.getPrimaryPlayer()?.toSummary()
 
-    suspend fun create(name: String, colorToken: String? = null, isPrimary: Boolean = false): PlayerSummary {
+    suspend fun create(
+        name: String,
+        colorToken: String? = null,
+        avatarStyleRaw: String? = null,
+        isPrimary: Boolean = false,
+    ): PlayerSummary {
         val now = Instant.now().toEpochMilli()
         val id = UUID.randomUUID().toString()
         val entity = PlayerEntity(
             id = id,
             name = name.trim(),
             colorToken = colorToken ?: com.jacobrozell.dartbuddy.domain.model.PlayerColorToken.defaultForPlayer(id).raw,
+            avatarStyleRaw = avatarStyleRaw ?: PlayerAvatarStyle.defaultForPlayer(id, isBot = false).raw,
             isPrimary = isPrimary,
             createdAtEpochMillis = now,
             updatedAtEpochMillis = now,
@@ -109,7 +135,7 @@ class PlayerRepository @Inject constructor(
             name = difficulty.rosterName(l10n),
             isBot = true,
             botDifficultyRaw = difficulty.name,
-            botKindRaw = "preset",
+            botKindRaw = BotKind.PRESET,
             colorToken = com.jacobrozell.dartbuddy.domain.model.PlayerColorToken.Purple.raw,
             createdAtEpochMillis = now,
             updatedAtEpochMillis = now,
@@ -129,7 +155,7 @@ class PlayerRepository @Inject constructor(
             name = resolvedName,
             isBot = true,
             botDifficultyRaw = CustomBotConfigurationCodec.encode(configuration),
-            botKindRaw = "custom",
+            botKindRaw = BotKind.CUSTOM,
             colorToken = com.jacobrozell.dartbuddy.domain.model.PlayerColorToken.Purple.raw,
             createdAtEpochMillis = now,
             updatedAtEpochMillis = now,
@@ -140,7 +166,7 @@ class PlayerRepository @Inject constructor(
 
     suspend fun updateCustomBotMetrics(id: String, metrics: CustomBotMetrics) {
         val existing = playerDao.getById(id) ?: return
-        if (!existing.isBot || existing.botKindRaw != "custom") return
+        if (!existing.isBot || existing.botKindRaw != BotKind.CUSTOM) return
         val configuration = (CustomBotConfigurationCodec.decode(existing.botDifficultyRaw) ?: CustomBotConfiguration.from(metrics))
             .withMetrics(metrics.x01Average, metrics.cricketMPR)
             .resetToSimpleTargets()
@@ -154,7 +180,7 @@ class PlayerRepository @Inject constructor(
 
     suspend fun updateCustomBotConfiguration(id: String, configuration: CustomBotConfiguration) {
         val existing = playerDao.getById(id) ?: return
-        if (!existing.isBot || existing.botKindRaw != "custom") return
+        if (!existing.isBot || existing.botKindRaw != BotKind.CUSTOM) return
         playerDao.upsert(
             existing.copy(
                 botDifficultyRaw = CustomBotConfigurationCodec.encode(configuration),
@@ -167,6 +193,7 @@ class PlayerRepository @Inject constructor(
         id: String,
         name: String,
         colorToken: String?,
+        avatarStyleRaw: String?,
         notes: String?,
         isPrimary: Boolean,
     ) {
@@ -175,12 +202,102 @@ class PlayerRepository @Inject constructor(
             existing.copy(
                 name = name.trim(),
                 colorToken = colorToken,
+                avatarStyleRaw = avatarStyleRaw,
                 notes = notes?.trim()?.ifBlank { null },
                 isPrimary = isPrimary,
                 updatedAtEpochMillis = Instant.now().toEpochMilli(),
             ),
         )
     }
+
+    suspend fun fetchTrainingBot(linkedTo: String): PlayerSummary? =
+        playerDao.getTrainingBotFor(linkedTo)?.toSummary()
+
+    suspend fun createTrainingBot(humanPlayerId: String): PlayerSummary {
+        val human = playerDao.getById(humanPlayerId)
+            ?: throw TrainingBotException.InvalidPlayer
+        if (human.isBot || human.isArchived) throw TrainingBotException.InvalidPlayer
+        if (playerDao.getTrainingBotFor(humanPlayerId) != null) throw TrainingBotException.Duplicate
+        val now = Instant.now().toEpochMilli()
+        val id = UUID.randomUUID().toString()
+        val name = l10n.format(com.jacobrozell.dartbuddy.R.string.training_bot_name_format, human.name)
+        val entity = PlayerEntity(
+            id = id,
+            name = name,
+            isBot = true,
+            botKindRaw = BotKind.TRAINING,
+            linkedPlayerId = humanPlayerId,
+            avatarStyleRaw = human.avatarStyleRaw ?: PlayerAvatarStyle.defaultForPlayer(id, isBot = true).raw,
+            colorToken = human.colorToken ?: com.jacobrozell.dartbuddy.domain.model.PlayerColorToken.defaultForPlayer(id).raw,
+            createdAtEpochMillis = now,
+            updatedAtEpochMillis = now,
+        )
+        playerDao.upsert(entity)
+        return entity.toSummary()
+    }
+
+    suspend fun resolveBotSkillProfile(playerId: String, mode: MatchType): BotSkillProfile? {
+        val player = getById(playerId) ?: return null
+        if (!player.isBot) return null
+        return when (player.botKindRaw) {
+            BotKind.CUSTOM -> BotTurnCoordinator.customConfigurationFor(player)?.resolvedCanonicalProfile()
+            BotKind.TRAINING -> resolveTrainingBotSkill(player.id, mode)
+            else -> BotTurnCoordinator.difficultyFor(player)?.skillProfile
+        }
+    }
+
+    suspend fun resolveTrainingBotSkill(botId: String, mode: MatchType): BotSkillProfile {
+        val bot = getById(botId) ?: throw TrainingBotException.NotTrainingBot
+        if (!bot.isTrainingBot) throw TrainingBotException.NotTrainingBot
+        val linkedId = bot.linkedPlayerId ?: throw TrainingBotException.NotTrainingBot
+        val linked = getById(linkedId) ?: throw TrainingBotException.Ineligible
+        val modeStats = loadModeStatsForPlayer(linkedId, linked.name, mode)
+            ?: throw TrainingBotException.Ineligible
+        val eligibility = TrainingBotEligibilityService.eligibility(modeStats, mode)
+        if (!eligibility.isEligible) throw TrainingBotException.Ineligible
+        return TrainingBotSkillResolver.resolve(modeStats, mode)
+    }
+
+    private suspend fun loadModeStatsForPlayer(
+        playerId: String,
+        playerName: String,
+        mode: MatchType,
+    ) = PlayerStatsAggregator.aggregate(
+        matches = matchRepository.observeHistory().first().filter {
+            it.participantIds.contains(playerId) &&
+                (it.status == MatchStatus.Completed || it.status == MatchStatus.Forfeited)
+        },
+        playerId = playerId,
+        playerName = playerName,
+        matchType = mode,
+        statsForMatch = statsForMatch@{ summary ->
+            when (summary.matchType) {
+                MatchType.X01 -> {
+                    val session = matchSessionService.loadX01Session(summary.id) ?: return@statsForMatch null
+                    MatchStatsCalculator.x01Stats(
+                        summary.participantIds,
+                        summary.participantNames,
+                        session.events,
+                        session.state.players.associate { it.playerId to it.legsWon },
+                        session.state.players.associate { it.playerId to it.setsWon },
+                        summary.winnerPlayerId,
+                    )
+                }
+                MatchType.Cricket -> {
+                    val session = matchSessionService.loadCricketSession(summary.id) ?: return@statsForMatch null
+                    MatchStatsCalculator.cricketStats(
+                        summary.participantIds,
+                        summary.participantNames,
+                        session.events,
+                        session.state.players.associate { it.playerId to it.score },
+                        session.state.players.associate { it.playerId to it.legsWon },
+                        session.state.players.associate { it.playerId to it.setsWon },
+                        summary.winnerPlayerId,
+                    )
+                }
+            }
+        },
+    )
 
     suspend fun rename(id: String, name: String) {
         val existing = playerDao.getById(id) ?: return
@@ -209,7 +326,10 @@ class PlayerRepository @Inject constructor(
         avatarStyleRaw = avatarStyleRaw,
         colorToken = colorToken,
         notes = notes,
+        linkedPlayerId = linkedPlayerId,
         isPrimary = isPrimary,
+        createdAtEpochMillis = createdAtEpochMillis,
+        updatedAtEpochMillis = updatedAtEpochMillis,
     )
 }
 
@@ -217,13 +337,26 @@ class PlayerRepository @Inject constructor(
 class MatchRepository @Inject constructor(
     private val matchDao: MatchDao,
     private val json: Json,
+    private val l10n: com.jacobrozell.dartbuddy.support.L10n,
 ) {
     fun observeHistory(): Flow<List<MatchSummary>> =
         matchDao.observeAll().map { list -> list.map { it.toSummary() } }
 
+    fun observeHistoryRows(): Flow<List<HistoryListRow>> =
+        matchDao.observeAll().map { list ->
+            list
+                .filter { it.status != MatchStatus.InProgress.name }
+                .map { MatchHistoryCardBuilder.build(it, json, l10n) }
+        }
+
     fun observeActiveMatch(): Flow<MatchEntity?> = matchDao.observeActiveMatch()
 
     suspend fun getMatch(id: String): MatchEntity? = matchDao.getById(id)
+
+    suspend fun matchesForPlayer(playerId: String): List<MatchEntity> =
+        matchDao.observeAll().first().filter { entity ->
+            json.decodeFromString<List<String>>(entity.participantIdsJson).contains(playerId)
+        }
 
     suspend fun saveMatch(entity: MatchEntity) = matchDao.upsert(entity)
 
@@ -328,12 +461,18 @@ class LocalDataResetService @Inject constructor(
     private val settingsDao: SettingsDao,
     private val settingsRepository: SettingsRepository,
     private val onboardingStore: OnboardingStore,
+    private val rematchStore: com.jacobrozell.dartbuddy.data.prefs.RematchStore,
+    private val practiceSetupStore: com.jacobrozell.dartbuddy.data.prefs.PracticeSetupStore,
+    private val playStoreUpdateStore: com.jacobrozell.dartbuddy.data.prefs.PlayStoreUpdateStore,
 ) {
     suspend fun resetAllLocalData() {
         matchDao.deleteAll()
         playerDao.deleteAll()
         settingsDao.deleteAll()
         onboardingStore.clear()
+        rematchStore.clear()
+        practiceSetupStore.clear()
+        playStoreUpdateStore.clear()
         settingsRepository.save(AppSettings())
     }
 }

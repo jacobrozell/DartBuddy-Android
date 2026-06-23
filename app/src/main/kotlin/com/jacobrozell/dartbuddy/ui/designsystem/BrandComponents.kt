@@ -1,11 +1,13 @@
 package com.jacobrozell.dartbuddy.ui.designsystem
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -40,18 +43,34 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
+import com.jacobrozell.dartbuddy.ui.layout.contentMaxWidth
+import com.jacobrozell.dartbuddy.ui.layout.currentSmallestScreenWidthDp
+import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
+import com.jacobrozell.dartbuddy.ui.layout.tabScrollBottomPadding
+import com.jacobrozell.dartbuddy.ui.layout.usesWideSetupHomeLayout
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 @Composable
 fun TabRootScaffold(
     modifier: Modifier = Modifier,
+    forceBrandDarkBackground: Boolean = false,
     bottomBar: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
-    val bg = if (dark) Brand.BackgroundDark else Brand.BackgroundLight
+    val bg = when {
+        forceBrandDarkBackground -> Brand.BackgroundDark
+        dark -> Brand.BackgroundDark
+        else -> Brand.BackgroundLight
+    }
+    val layout = rememberLayoutContext()
+    val maxWidth = contentMaxWidth(layout)
+    val scrollBottom = tabScrollBottomPadding(layout)
     Column(modifier.fillMaxSize().background(bg)) {
         Box(
             modifier = Modifier
@@ -62,10 +81,10 @@ fun TabRootScaffold(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .widthIn(max = DS.contentMaxWidth)
+                    .widthIn(max = maxWidth)
                     .align(Alignment.TopCenter)
                     .padding(horizontal = DS.s4, vertical = DS.s2)
-                    .padding(bottom = DS.s6),
+                    .padding(bottom = scrollBottom),
                 verticalArrangement = Arrangement.spacedBy(DS.s4),
                 content = content,
             )
@@ -156,6 +175,7 @@ fun PrimaryActionButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     accent: Color = Brand.Green,
+    testTag: String? = null,
 ) {
     val dark = isSystemInDarkTheme()
     val disabledBg = if (dark) Brand.CardElevatedDark else Brand.CardElevatedLight
@@ -167,6 +187,7 @@ fun PrimaryActionButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
+            .then(if (testTag != null) Modifier.a11yId(testTag) else Modifier)
             .semantics { contentDescription = title },
         shape = RoundedCornerShape(DS.radiusSm),
         color = if (enabled) accent else disabledBg,
@@ -205,6 +226,26 @@ fun ErrorBanner(
 }
 
 @Composable
+fun HintBanner(
+    message: String,
+    modifier: Modifier = Modifier,
+) {
+    val dark = isSystemInDarkTheme()
+    val background = if (dark) Brand.Amber.copy(alpha = 0.22f) else Brand.Amber.copy(alpha = 0.14f)
+    Text(
+        text = message,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DS.radiusSm))
+            .background(background)
+            .padding(horizontal = DS.s3, vertical = DS.s2),
+        color = if (dark) Brand.Amber else Brand.Amber,
+        fontWeight = FontWeight.SemiBold,
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
 fun SetupStickyFooter(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
@@ -221,6 +262,107 @@ fun SetupStickyFooter(
         verticalArrangement = Arrangement.spacedBy(DS.s2),
         content = content,
     )
+}
+
+@Composable
+fun <T> BrandSegmented(
+    options: List<Pair<T, String>>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val layout = rememberLayoutContext()
+    val dark = isSystemInDarkTheme()
+    val cardBg = if (dark) Brand.CardDark else Brand.CardLight
+    val selectedBg = if (dark) Brand.CardElevatedDark else Brand.CardElevatedLight
+    val useVertical = layout.isAccessibilityFont && options.size <= 3
+    val useScroll = layout.isAccessibilityFont && options.size == 4 || options.size > 4
+
+    val container: @Composable (content: @Composable () -> Unit) -> Unit = { content ->
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(DS.radiusSm))
+                .background(cardBg)
+                .padding(4.dp),
+        ) { content() }
+    }
+
+    container {
+        when {
+            useVertical -> {
+                options.forEach { (value, label) ->
+                    SegmentButton(
+                        label = label,
+                        selected = value == selected,
+                        selectedBg = selectedBg,
+                        expand = true,
+                        onClick = { onSelect(value) },
+                    )
+                }
+            }
+            useScroll -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                ) {
+                    options.forEach { (value, label) ->
+                        SegmentButton(
+                            label = label,
+                            selected = value == selected,
+                            selectedBg = selectedBg,
+                            expand = false,
+                            onClick = { onSelect(value) },
+                        )
+                    }
+                }
+            }
+            else -> {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    options.forEach { (value, label) ->
+                        SegmentButton(
+                            label = label,
+                            selected = value == selected,
+                            selectedBg = selectedBg,
+                            expand = true,
+                            onClick = { onSelect(value) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SegmentButton(
+    label: String,
+    selected: Boolean,
+    selectedBg: Color,
+    expand: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .then(if (expand) Modifier.fillMaxWidth() else Modifier.padding(horizontal = DS.s3))
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(DS.radiusSm))
+            .background(if (selected) selectedBg else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = if (expand) 8.dp else 0.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -292,6 +434,7 @@ fun SetupHomeChrome(
     val dark = isSystemInDarkTheme()
     val bg = if (dark) Brand.BackgroundDark else Brand.BackgroundLight
     BoxWithConstraints(modifier.fillMaxSize().background(bg)) {
+        val layoutMaxWidth = contentMaxWidth(currentSmallestScreenWidthDp())
         Column(Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -301,10 +444,10 @@ fun SetupHomeChrome(
             ) {
                 Box(
                     modifier = Modifier
-                        .widthIn(max = DS.contentMaxWidth)
+                        .widthIn(max = layoutMaxWidth)
                         .align(Alignment.TopCenter)
                         .padding(horizontal = DS.s4)
-                        .padding(bottom = 96.dp),
+                        .padding(bottom = DS.s4),
                 ) {
                     content()
                 }
@@ -315,6 +458,7 @@ fun SetupHomeChrome(
                     onClick = onStart,
                     enabled = startEnabled,
                     loading = startLoading,
+                    testTag = AccessibilityIds.START_MATCH_BUTTON,
                 )
                 validationErrors.forEach { ErrorBanner(it) }
             }
@@ -327,7 +471,9 @@ fun WideOrCompactSetup(
     wideContent: @Composable () -> Unit,
     compactContent: @Composable () -> Unit,
 ) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth >= DS.setupWideBreakpoint) wideContent() else compactContent()
+    if (usesWideSetupHomeLayout(rememberLayoutContext())) {
+        wideContent()
+    } else {
+        compactContent()
     }
 }

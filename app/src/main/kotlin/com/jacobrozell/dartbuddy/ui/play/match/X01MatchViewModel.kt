@@ -17,6 +17,10 @@ import com.jacobrozell.dartbuddy.domain.service.ForfeitWinnerResolution
 import com.jacobrozell.dartbuddy.domain.service.MatchForfeitResolver
 import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.domain.service.X01Session
+import com.jacobrozell.dartbuddy.domain.service.MatchTurnSupport
+import com.jacobrozell.dartbuddy.support.logging.AppLogger
+import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.info
 import com.jacobrozell.dartbuddy.support.L10n
 import com.jacobrozell.dartbuddy.support.MatchConfigText
 import com.jacobrozell.dartbuddy.R
@@ -76,6 +80,7 @@ class X01MatchViewModel @Inject constructor(
     private val playerRepository: PlayerRepository,
     private val settingsRepository: SettingsRepository,
     private val feedback: FeedbackServices,
+    private val logger: AppLogger,
     private val l10n: L10n,
     private val json: Json,
 ) : ViewModel() {
@@ -109,6 +114,13 @@ class X01MatchViewModel @Inject constructor(
                 botStaggerEnabled = settings.botStaggerEnabled,
                 botDartHapticsEnabled = settings.botDartHapticsEnabled,
                 configSummary = buildConfigSummary(session),
+            )
+            logger.info(
+                LogCategory.UI,
+                eventName = "match_screen_appeared",
+                message = "Match screen appeared.",
+                metadata = mapOf("matchType" to MatchType.X01.name.lowercase()),
+                correlationId = matchId,
             )
             scheduleBotTurnIfNeeded()
         }
@@ -193,7 +205,23 @@ class X01MatchViewModel @Inject constructor(
         return visitScore.checkedInAfter
     }
 
-    fun undoDart() = _uiState.update { it.copy(currentDarts = it.currentDarts.dropLast(1)) }
+    fun undoDart() {
+        val session = _uiState.value.session ?: return
+        if (_uiState.value.currentDarts.isEmpty()) return
+        _uiState.update { it.copy(currentDarts = it.currentDarts.dropLast(1)) }
+        MatchTurnSupport.logDartUndone(
+            logger,
+            session.entity.id,
+            MatchType.X01,
+            MatchTurnSupport.progressMetadata(
+                MatchType.X01,
+                session.events.size,
+                session.state.legIndex,
+                session.state.setIndex,
+                session.entity.status,
+            ),
+        )
+    }
 
     fun checkoutRoutes(): List<List<String>> {
         val state = _uiState.value
@@ -227,6 +255,7 @@ class X01MatchViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val updated = matchSessionService.submitX01Turn(session, null, current.currentDarts)
+                MatchTurnSupport.logTurnSubmitted(logger, session.entity.id, updated)
                 val busted = updated.events.lastOrNull()?.isBust == true
                 val checkedOut = updated.events.lastOrNull()?.didCheckout == true
                 val legWon = checkedOut && !updated.state.isComplete
@@ -257,6 +286,12 @@ class X01MatchViewModel @Inject constructor(
                     scheduleBotTurnIfNeeded(onComplete)
                 }
             } catch (e: Exception) {
+                MatchTurnSupport.logTurnPersistFailed(
+                    logger,
+                    session.entity.id,
+                    MatchType.X01,
+                    e.message ?: "Turn persist failed.",
+                )
                 _uiState.update { it.copy(errorMessage = e.message) }
             }
         }
@@ -268,9 +303,30 @@ class X01MatchViewModel @Inject constructor(
         val session = state.session ?: return
         botTurnJob?.cancel()
         viewModelScope.launch {
-            matchSessionService.undoLastX01Turn(session)?.let { updated ->
-                _uiState.update { it.copy(session = updated, currentDarts = emptyList(), bustMessage = null) }
-                scheduleBotTurnIfNeeded()
+            try {
+                matchSessionService.undoLastX01Turn(session)?.let { updated ->
+                    MatchTurnSupport.logTurnUndone(
+                        logger,
+                        session.entity.id,
+                        MatchType.X01,
+                        MatchTurnSupport.progressMetadata(
+                            MatchType.X01,
+                            updated.events.size,
+                            updated.state.legIndex,
+                            updated.state.setIndex,
+                            updated.entity.status,
+                        ),
+                    )
+                    _uiState.update { it.copy(session = updated, currentDarts = emptyList(), bustMessage = null) }
+                    scheduleBotTurnIfNeeded()
+                }
+            } catch (e: Exception) {
+                MatchTurnSupport.logTurnUndoFailed(
+                    logger,
+                    session.entity.id,
+                    MatchType.X01,
+                    e.message ?: "Undo failed.",
+                )
             }
         }
     }
@@ -294,7 +350,7 @@ class X01MatchViewModel @Inject constructor(
                 if (state.participantIsBot[playerId] != true) return@launch
 
                 val player = playerRepository.getById(playerId) ?: return@launch
-                val profile = BotTurnCoordinator.skillProfileFor(player, MatchType.X01) ?: return@launch
+                val profile = playerRepository.resolveBotSkillProfile(playerId, MatchType.X01) ?: return@launch
 
                 _uiState.update { it.copy(isBotTurnActive = true) }
                 BotTurnCoordinator.thinkDelay()
@@ -320,6 +376,7 @@ class X01MatchViewModel @Inject constructor(
 
                 try {
                     val updated = matchSessionService.submitX01Turn(session, null, darts)
+                    MatchTurnSupport.logTurnSubmitted(logger, session.entity.id, updated)
                     val busted = updated.events.lastOrNull()?.isBust == true
                     val checkedOut = updated.events.lastOrNull()?.didCheckout == true
                     val legWon = checkedOut && !updated.state.isComplete

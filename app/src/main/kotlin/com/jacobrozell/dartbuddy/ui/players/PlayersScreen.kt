@@ -4,12 +4,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -17,7 +22,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -35,14 +39,13 @@ import com.jacobrozell.dartbuddy.data.repository.PlayerRepository
 import com.jacobrozell.dartbuddy.data.repository.PlayerSummary
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator
-import com.jacobrozell.dartbuddy.domain.bots.CustomBotConfiguration
 import com.jacobrozell.dartbuddy.domain.bots.CustomBotMetrics
-import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
+import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
+import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.designsystem.BrandRootScreenTitle
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
-import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
 import com.jacobrozell.dartbuddy.ui.designsystem.TabRootScaffold
@@ -73,8 +76,8 @@ class PlayersViewModel @Inject constructor(
         query.value = value
     }
 
-    fun addPlayer(name: String) {
-        viewModelScope.launch { playerRepository.create(name) }
+    fun addPlayer(name: String, colorToken: String? = null, avatarStyleRaw: String? = null) {
+        viewModelScope.launch { playerRepository.create(name, colorToken, avatarStyleRaw) }
     }
 
     fun addBot(difficulty: BotDifficulty) {
@@ -94,46 +97,6 @@ class PlayersViewModel @Inject constructor(
     }
 }
 
-@HiltViewModel
-class PlayerDetailViewModel @Inject constructor(
-    private val playerRepository: PlayerRepository,
-) : ViewModel() {
-    private val _player = kotlinx.coroutines.flow.MutableStateFlow<PlayerSummary?>(null)
-    val player = _player.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    fun load(id: String) {
-        viewModelScope.launch { _player.value = playerRepository.getById(id) }
-    }
-
-    fun save(id: String, name: String, colorToken: String?, notes: String?, isPrimary: Boolean) {
-        viewModelScope.launch {
-            playerRepository.update(id, name, colorToken, notes, isPrimary)
-            _player.value = playerRepository.getById(id)
-        }
-    }
-
-    fun updateCustomBotConfiguration(id: String, configuration: CustomBotConfiguration) {
-        viewModelScope.launch {
-            playerRepository.updateCustomBotConfiguration(id, configuration)
-            _player.value = playerRepository.getById(id)
-        }
-    }
-
-    fun delete(id: String, onDone: () -> Unit) {
-        viewModelScope.launch {
-            playerRepository.delete(id)
-            onDone()
-        }
-    }
-
-    fun archive(id: String, onDone: () -> Unit) {
-        viewModelScope.launch {
-            playerRepository.archive(id)
-            onDone()
-        }
-    }
-}
-
 @Composable
 fun PlayersScreen(
     onOpenPlayer: (String) -> Unit,
@@ -141,6 +104,8 @@ fun PlayersScreen(
 ) {
     val players by viewModel.players.collectAsStateWithLifecycle()
     var newName by rememberSaveable { mutableStateOf("") }
+    var newAvatar by rememberSaveable { mutableStateOf(PlayerAvatarStyle.Dart.raw) }
+    var newColor by rememberSaveable { mutableStateOf(PlayerColorToken.Green.raw) }
     var showAddBot by rememberSaveable { mutableStateOf(false) }
     var showCustomBot by rememberSaveable { mutableStateOf(false) }
     var search by rememberSaveable { mutableStateOf("") }
@@ -161,18 +126,22 @@ fun PlayersScreen(
         )
 
         SetupSectionCard {
-            OutlinedTextField(
-                value = newName,
-                onValueChange = { newName = it },
-                label = { Text(stringResource(R.string.players_new_name)) },
-                modifier = Modifier.fillMaxWidth(),
+            PlayerCreateFields(
+                name = newName,
+                onNameChange = { newName = it },
+                avatarStyle = PlayerAvatarStyle.resolve(newAvatar),
+                onAvatarStyleChange = { newAvatar = it.raw },
+                colorToken = PlayerColorToken.resolve(newColor),
+                onColorChange = { newColor = it.raw },
             )
             PrimaryActionButton(
                 title = stringResource(R.string.players_add),
                 onClick = {
                     if (newName.isNotBlank()) {
-                        viewModel.addPlayer(newName.trim())
+                        viewModel.addPlayer(newName.trim(), newColor, newAvatar)
                         newName = ""
+                        newAvatar = PlayerAvatarStyle.Dart.raw
+                        newColor = PlayerColorToken.Green.raw
                     }
                 },
                 enabled = newName.isNotBlank(),
@@ -185,7 +154,11 @@ fun PlayersScreen(
         if (active.isNotEmpty()) {
             Text(stringResource(R.string.players_active_section), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             active.forEach { player ->
-                PlayerRow(player = player, onOpen = { onOpenPlayer(player.id) }, onArchive = { viewModel.archivePlayer(player.id) })
+                SwipeablePlayerRow(
+                    player = player,
+                    onOpen = { onOpenPlayer(player.id) },
+                    onArchive = { viewModel.archivePlayer(player.id) },
+                )
             }
         }
 
@@ -229,122 +202,44 @@ fun PlayersScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerDetailScreen(
-    playerId: String,
-    onBack: () -> Unit,
-    viewModel: PlayerDetailViewModel = hiltViewModel(),
+private fun SwipeablePlayerRow(
+    player: PlayerSummary,
+    onOpen: () -> Unit,
+    onArchive: () -> Unit,
 ) {
-    val player by viewModel.player.collectAsStateWithLifecycle()
-    var name by rememberSaveable(playerId) { mutableStateOf("") }
-    var notes by rememberSaveable(playerId) { mutableStateOf("") }
-    var isPrimary by rememberSaveable(playerId) { mutableStateOf(false) }
-    var colorToken by rememberSaveable(playerId) { mutableStateOf(PlayerColorToken.Green.raw) }
-    var showDeleteConfirm by rememberSaveable { mutableStateOf(false) }
-
-    androidx.compose.runtime.LaunchedEffect(playerId) { viewModel.load(playerId) }
-    androidx.compose.runtime.LaunchedEffect(player) {
-        player?.let {
-            name = it.name
-            notes = it.notes.orEmpty()
-            isPrimary = it.isPrimary
-            colorToken = it.colorToken ?: PlayerColorToken.defaultForPlayer(it.id).raw
-        }
-    }
-
-    TabRootScaffold {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.common_back)) }
-        Text(stringResource(R.string.players_detail_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-
-        player?.let { detail ->
-            SetupSectionCard {
-                PlayerAvatar(name = detail.name, colorToken = colorToken, playerId = detail.id, size = 56.dp)
-                if (detail.isBot) {
-                    Text(
-                        if (detail.botKindRaw == "custom") {
-                            BotTurnCoordinator.customMetricsFor(detail)?.let { metrics ->
-                                stringResource(R.string.custom_bot_badge_format, metrics.x01Average, metrics.cricketMPR)
-                            } ?: stringResource(R.string.players_bot_label)
-                        } else {
-                            stringResource(R.string.players_bot_label)
-                        },
-                        color = Brand.ProBot,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                if (detail.botKindRaw == "custom") {
-                    BotTurnCoordinator.customConfigurationFor(detail)?.let { initialConfig ->
-                        var botConfiguration by remember(detail.id) { mutableStateOf(initialConfig) }
-                        androidx.compose.runtime.LaunchedEffect(detail.botDifficultyRaw) {
-                            BotTurnCoordinator.customConfigurationFor(detail)?.let { botConfiguration = it }
-                        }
-                        CustomBotDetailEditor(
-                            configuration = botConfiguration,
-                            onConfigurationChange = {
-                                botConfiguration = it
-                                viewModel.updateCustomBotConfiguration(detail.id, it)
-                            },
-                        )
-                    }
-                }
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { if (!detail.isBot || detail.botKindRaw == "custom") name = it },
-                    label = { Text(stringResource(R.string.players_new_name)) },
-                    enabled = !detail.isBot || detail.botKindRaw == "custom",
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text(stringResource(R.string.players_notes)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                HorizontalOptionChips(
-                    label = "Color",
-                    options = PlayerColorToken.all.take(8),
-                    selected = PlayerColorToken.resolve(colorToken),
-                    onSelect = { colorToken = it.raw },
-                    labelFor = { it.raw },
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.players_primary))
-                    androidx.compose.material3.Switch(checked = isPrimary, onCheckedChange = { isPrimary = it })
-                }
-                PrimaryActionButton(
-                    title = stringResource(R.string.players_edit),
-                    onClick = { viewModel.save(detail.id, name, colorToken, notes, isPrimary) },
-                    enabled = name.isNotBlank(),
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onArchive()
+            }
+            false
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(DS.radiusSm))
+                    .background(Brand.RedAccent)
+                    .padding(horizontal = DS.s4),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Text(
+                    stringResource(R.string.players_archive),
+                    color = androidx.compose.ui.graphics.Color.White,
+                    fontWeight = FontWeight.SemiBold,
                 )
             }
-
-            if (!detail.isArchived) {
-                TextButton(onClick = { viewModel.archive(detail.id, onBack) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.players_archive), color = Brand.Red)
-                }
-            }
-            TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.players_delete), color = Brand.Red)
-            }
-        }
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.players_delete)) },
-            text = { Text(stringResource(R.string.players_delete_confirm, name)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.delete(playerId, onBack)
-                    showDeleteConfirm = false
-                }) { Text(stringResource(R.string.common_confirm), color = Brand.Red) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
-            },
-        )
-    }
+        },
+        content = {
+            PlayerRow(player = player, onOpen = onOpen, onArchive = onArchive)
+        },
+    )
 }
 
 @Composable
@@ -367,7 +262,14 @@ private fun PlayerRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DS.s3),
     ) {
-        PlayerAvatar(name = player.name, colorToken = player.colorToken, playerId = player.id, size = 36.dp)
+        PlayerAvatar(
+            name = player.name,
+            colorToken = player.colorToken,
+            playerId = player.id,
+            avatarStyleRaw = player.avatarStyleRaw,
+            isBot = player.isBot,
+            size = 36.dp,
+        )
         Column(Modifier.weight(1f)) {
             Text(player.name, fontWeight = FontWeight.SemiBold)
             if (player.isBot) {

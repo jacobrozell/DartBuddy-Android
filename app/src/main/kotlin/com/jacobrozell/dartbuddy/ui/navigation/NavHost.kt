@@ -1,7 +1,9 @@
 package com.jacobrozell.dartbuddy.ui.navigation
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
@@ -14,6 +16,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -21,13 +24,18 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.TextButton
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -43,6 +51,12 @@ import com.jacobrozell.dartbuddy.ui.play.summary.MatchSummaryScreen
 import com.jacobrozell.dartbuddy.ui.players.PlayerDetailScreen
 import com.jacobrozell.dartbuddy.ui.players.PlayersScreen
 import com.jacobrozell.dartbuddy.ui.settings.SettingsScreen
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
+import com.jacobrozell.dartbuddy.support.motion.TabContentReveal
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 enum class RootTab(val route: String, val labelRes: Int, val selectedIcon: ImageVector, val unselectedIcon: ImageVector) {
@@ -65,24 +79,127 @@ fun DartBuddyNavHost(
     val currentRoute = backStack?.destination?.route
     val showBottomBar = currentRoute in tabRoutes
     val activeMatch by shellViewModel.activeMatch.collectAsStateWithLifecycle()
+    val updateOffer by shellViewModel.updateOffer.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val dark = isSystemInDarkTheme()
     val navBg = if (dark) Brand.CardDark else Brand.CardLight
 
+    LaunchedEffect(Unit) {
+        shellViewModel.checkForPlayStoreUpdate()
+    }
+
+    var pendingResumeDeepLink by remember { mutableStateOf(false) }
+
     LaunchedEffect(deepLinkPath) {
         when (deepLinkPath?.trim('/')) {
-            "play", null -> Unit
-            "players" -> navController.navigate(RootTab.Players.route)
-            "activity" -> navController.navigate(RootTab.Activity.route)
-            "settings" -> navController.navigate(RootTab.Settings.route)
-            else -> Unit
+            "play", "play/setup" -> {
+                navController.navigate(RootTab.Play.route) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+                onDeepLinkConsumed()
+            }
+            "play/resume" -> pendingResumeDeepLink = true
+            "players" -> {
+                navController.navigate(RootTab.Players.route)
+                onDeepLinkConsumed()
+            }
+            "activity" -> {
+                navController.navigate(RootTab.Activity.route)
+                onDeepLinkConsumed()
+            }
+            "settings" -> {
+                navController.navigate(RootTab.Settings.route)
+                onDeepLinkConsumed()
+            }
+            else -> when {
+                deepLinkPath?.startsWith("play/match/") == true -> {
+                    val matchId = deepLinkPath.removePrefix("play/match/")
+                    val route = shellViewModel.resolveActiveMatchRoute(matchId)
+                    if (route != null) {
+                        navController.navigate(route) {
+                            popUpTo(RootTab.Play.route) { saveState = true }
+                        }
+                    } else {
+                        navController.navigate(RootTab.Play.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                    onDeepLinkConsumed()
+                }
+                deepLinkPath?.startsWith("activity/history/match/") == true -> {
+                    val matchId = deepLinkPath.removePrefix("activity/history/match/")
+                    navController.navigate(RootTab.Activity.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                    navController.navigate("history/$matchId")
+                    onDeepLinkConsumed()
+                }
+                deepLinkPath?.startsWith("players/") == true -> {
+                    val playerId = deepLinkPath.removePrefix("players/")
+                    val route = shellViewModel.playerDetailRoute(playerId)
+                    if (route != null) {
+                        navController.navigate(route)
+                    } else {
+                        navController.navigate(RootTab.Players.route)
+                    }
+                    onDeepLinkConsumed()
+                }
+                deepLinkPath != null -> onDeepLinkConsumed()
+            }
         }
-        if (deepLinkPath != null) {
-            onDeepLinkConsumed()
+    }
+
+    LaunchedEffect(pendingResumeDeepLink) {
+        if (!pendingResumeDeepLink) return@LaunchedEffect
+        val match = withTimeoutOrNull(1_000) {
+            shellViewModel.activeMatch.filterNotNull().first()
         }
+        if (match != null) {
+            navController.navigate("match/${match.matchType.lowercase()}/${match.id}") {
+                popUpTo(RootTab.Play.route) { saveState = true }
+            }
+        } else {
+            navController.navigate(RootTab.Play.route) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+        pendingResumeDeepLink = false
+        onDeepLinkConsumed()
+    }
+
+    updateOffer?.let {
+        AlertDialog(
+            onDismissRequest = { shellViewModel.dismissPlayStoreUpdate() },
+            title = { Text(stringResource(R.string.app_update_title)) },
+            text = { Text(stringResource(R.string.app_update_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    shellViewModel.playStoreUpdateIntent()?.let { intent ->
+                        context.startActivity(intent)
+                    }
+                }) {
+                    Text(stringResource(R.string.app_update_update))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { shellViewModel.dismissPlayStoreUpdate() }) {
+                    Text(stringResource(R.string.app_update_not_now))
+                }
+            },
+        )
     }
 
     Scaffold(
         containerColor = if (dark) Brand.BackgroundDark else Brand.BackgroundLight,
+        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(containerColor = navBg) {
@@ -90,9 +207,16 @@ fun DartBuddyNavHost(
                         val label = stringResource(tab.labelRes)
                         val selected = currentRoute == tab.route
                         val showBadge = tab == RootTab.Play && activeMatch != null
+                        val tabTestTag = when (tab) {
+                            RootTab.Play -> AccessibilityIds.TAB_PLAY
+                            RootTab.Players -> AccessibilityIds.TAB_PLAYERS
+                            RootTab.Activity -> AccessibilityIds.TAB_ACTIVITY
+                            RootTab.Settings -> AccessibilityIds.TAB_SETTINGS
+                        }
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
+                                shellViewModel.logTabPresented(tab.route)
                                 navController.navigate(tab.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
@@ -101,6 +225,7 @@ fun DartBuddyNavHost(
                                     restoreState = true
                                 }
                             },
+                            modifier = Modifier.a11yId(tabTestTag),
                             icon = {
                                 BadgedBox(badge = { if (showBadge) Badge() }) {
                                     Icon(
@@ -129,33 +254,29 @@ fun DartBuddyNavHost(
             modifier = Modifier.padding(padding),
         ) {
             composable(RootTab.Play.route) {
-                PlayScreen(
-                    onStartMatch = { type, matchId ->
-                        navController.navigate("match/${type.name.lowercase()}/$matchId")
-                    },
-                    onResumeMatch = { type, matchId ->
-                        navController.navigate("match/${type.lowercase()}/$matchId")
-                    },
-                )
+                TabContentReveal {
+                    PlayScreen(
+                        onStartMatch = { type, matchId ->
+                            navController.navigate("match/${type.name.lowercase()}/$matchId")
+                        },
+                        onResumeMatch = { type, matchId ->
+                            navController.navigate("match/${type.lowercase()}/$matchId")
+                        },
+                    )
+                }
             }
             composable(RootTab.Players.route) {
-                PlayersScreen(onOpenPlayer = { id -> navController.navigate("players/$id") })
+                TabContentReveal {
+                    PlayersScreen(onOpenPlayer = { id -> navController.navigate("players/$id") })
+                }
             }
             composable("players/{playerId}") { entry ->
                 PlayerDetailScreen(
                     playerId = entry.arguments?.getString("playerId").orEmpty(),
                     onBack = { navController.popBackStack() },
-                )
-            }
-            composable(RootTab.Activity.route) {
-                ActivityScreen(
-                    onOpenMatch = { matchId ->
-                        navController.navigate("history/$matchId")
-                    },
-                    onResumeMatch = { type, matchId ->
-                        navController.navigate("match/${type.lowercase()}/$matchId")
-                    },
-                    onStartMatch = {
+                    onOpenMatch = { matchId -> navController.navigate("history/$matchId") },
+                    onPractice = { humanId, botId, mode ->
+                        shellViewModel.practiceSetupStore.enqueuePractice(humanId, botId, mode)
                         navController.navigate(RootTab.Play.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
@@ -164,7 +285,30 @@ fun DartBuddyNavHost(
                     },
                 )
             }
-            composable(RootTab.Settings.route) { SettingsScreen() }
+            composable(RootTab.Activity.route) {
+                TabContentReveal {
+                    ActivityScreen(
+                        onOpenMatch = { matchId ->
+                            navController.navigate("history/$matchId")
+                        },
+                        onResumeMatch = { type, matchId ->
+                            navController.navigate("match/${type.lowercase()}/$matchId")
+                        },
+                        onStartMatch = {
+                            navController.navigate(RootTab.Play.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                    )
+                }
+            }
+            composable(RootTab.Settings.route) {
+                TabContentReveal {
+                    SettingsScreen()
+                }
+            }
             composable("match/x01/{matchId}") { entry ->
                 X01MatchScreen(
                     matchId = entry.arguments?.getString("matchId").orEmpty(),

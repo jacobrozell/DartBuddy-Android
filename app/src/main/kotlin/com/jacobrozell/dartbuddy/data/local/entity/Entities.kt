@@ -15,6 +15,7 @@ data class PlayerEntity(
     val colorToken: String? = null,
     val notes: String? = null,
     val isPrimary: Boolean = false,
+    val linkedPlayerId: String? = null,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
 )

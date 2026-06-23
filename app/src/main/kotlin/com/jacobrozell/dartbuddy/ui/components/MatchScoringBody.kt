@@ -12,10 +12,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.jacobrozell.dartbuddy.ui.layout.GameplayLayoutMetrics
-import com.jacobrozell.dartbuddy.ui.layout.isLandscapeOrientation
-import com.jacobrozell.dartbuddy.ui.layout.usesLandscapeMatchScoringLayout
+import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
+import com.jacobrozell.dartbuddy.ui.layout.scoringPadWidth
+import com.jacobrozell.dartbuddy.ui.layout.usesAccessibilityMatchScoringLayout
+import com.jacobrozell.dartbuddy.ui.layout.usesSideBySideMatchScoringLayout
 
 @Composable
 fun MatchScoringBody(
@@ -26,9 +28,28 @@ fun MatchScoringBody(
     padChrome: @Composable () -> Unit = {},
     pad: @Composable () -> Unit,
 ) {
-    val landscape = isLandscapeOrientation()
+    val layout = rememberLayoutContext(playerCount = playerCount)
+    val sideBySide = usesSideBySideMatchScoringLayout(layout)
+    val padWidth = scoringPadWidth(layout)
+    val accessibility = usesAccessibilityMatchScoringLayout(layout)
 
-    if (usesLandscapeMatchScoringLayout(landscape)) {
+    if (accessibility) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            activeBand()
+            scoreboard()
+            padChrome()
+            pad()
+        }
+        return
+    }
+
+    if (sideBySide) {
         Column(modifier.fillMaxSize()) {
             activeBand()
             Row(
@@ -46,16 +67,7 @@ fun MatchScoringBody(
                 ) {
                     scoreboard()
                 }
-                Column(
-                    modifier = Modifier
-                        .width(GameplayLayoutMetrics.landscapeScoringPadWidth)
-                        .fillMaxHeight()
-                        .padding(start = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    padChrome()
-                    pad()
-                }
+                PadColumn(padWidth, padChrome, pad)
             }
         }
     } else {
@@ -71,15 +83,32 @@ fun MatchScoringBody(
             ) {
                 scoreboard()
             }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                padChrome()
-                pad()
-            }
+            PadColumn(Dp.Unspecified, padChrome, pad, fullWidth = true)
         }
+    }
+}
+
+@Composable
+private fun PadColumn(
+    padWidth: Dp,
+    padChrome: @Composable () -> Unit,
+    pad: @Composable () -> Unit,
+    fullWidth: Boolean = false,
+) {
+    Column(
+        modifier = Modifier
+            .then(
+                when {
+                    fullWidth -> Modifier.fillMaxWidth()
+                    padWidth != Dp.Unspecified -> Modifier.width(padWidth)
+                    else -> Modifier
+                },
+            )
+            .then(if (fullWidth) Modifier else Modifier.fillMaxHeight().padding(start = 8.dp))
+            .padding(horizontal = if (fullWidth) 16.dp else 0.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        padChrome()
+        pad()
     }
 }

@@ -16,5 +16,7 @@ object DS {
     val radiusLg = 16.dp
 
     val contentMaxWidth = 720.dp
+    val tabletContentMaxWidth = 920.dp
     val setupWideBreakpoint = 600.dp
+    val wideTabletBreakpoint = 840.dp
 }

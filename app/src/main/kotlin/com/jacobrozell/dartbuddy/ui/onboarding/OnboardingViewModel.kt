@@ -14,6 +14,9 @@ import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingMode
 import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingRosterDraft
 import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingStep
 import com.jacobrozell.dartbuddy.domain.onboarding.showsOnboardingRulesIntro
+import com.jacobrozell.dartbuddy.support.logging.AppLogger
+import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.info
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +41,7 @@ class OnboardingViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val onboardingStore: OnboardingStore,
     private val rematchStore: RematchStore,
+    private val logger: AppLogger,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
@@ -136,6 +140,18 @@ class OnboardingViewModel @Inject constructor(
                     state.rosterDraft?.let { persistRoster(it) }
                 }
                 onboardingStore.markCompleted()
+                logger.info(
+                    LogCategory.APP_LIFECYCLE,
+                    eventName = "onboarding_completed",
+                    message = "Onboarding completed.",
+                    metadata = buildMap {
+                        put("skipped", state.skippedFromWelcome.toString())
+                        state.rosterDraft?.let {
+                            put("created_player", (!state.skippedFromWelcome).toString())
+                            put("bot_tier", it.botDifficulty.rawValue)
+                        }
+                    },
+                )
             }
             _uiState.update { it.copy(isFinishing = false) }
             onFinished()

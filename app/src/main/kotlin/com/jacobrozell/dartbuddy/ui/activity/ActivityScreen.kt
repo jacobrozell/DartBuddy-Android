@@ -8,14 +8,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,12 +47,15 @@ import com.jacobrozell.dartbuddy.domain.model.MatchStatus
 import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.domain.service.MatchStatsCalculator
+import com.jacobrozell.dartbuddy.domain.service.PlayerMatchStats
+import com.jacobrozell.dartbuddy.support.L10n
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.components.ResumeBanner
 import com.jacobrozell.dartbuddy.ui.designsystem.ErrorBanner
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.GameModeBadge
-import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
+import com.jacobrozell.dartbuddy.support.HistoryListRow
+import com.jacobrozell.dartbuddy.ui.designsystem.BrandSegmented
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.TabRootScaffold
 import com.jacobrozell.dartbuddy.ui.theme.Brand
@@ -68,9 +76,13 @@ data class PlayerAggregateStats(
     val playerId: String,
     val name: String,
     val matchCount: Int,
-    val x01Average: Double?,
-    val cricketMpr: Double?,
-)
+    val wins: Int,
+    val stats: PlayerMatchStats,
+) {
+    val x01Average: Double? = stats.average3Dart.takeIf { stats.darts > 0 }
+    val cricketMpr: Double? = stats.marksPerRound.takeIf { it > 0 }
+    val winPercent: Double get() = if (matchCount > 0) wins.toDouble() / matchCount * 100 else 0.0
+}
 
 @HiltViewModel
 class ActivityViewModel @Inject constructor(
@@ -78,6 +90,8 @@ class ActivityViewModel @Inject constructor(
     playerRepository: PlayerRepository,
 ) : ViewModel() {
     val history = matchRepository.observeHistory()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val historyRows = matchRepository.observeHistoryRows()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val players = playerRepository.observeActivePlayers()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -93,29 +107,35 @@ class StatisticsViewModel @Inject constructor(
 ) : ViewModel() {
     private val _rows = kotlinx.coroutines.flow.MutableStateFlow<List<PlayerAggregateStats>>(emptyList())
     val rows = _rows.asStateFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _includesPartial = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val includesPartial = _includesPartial.asStateFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun load(filter: ActivityFilter, period: ActivityPeriod, playerId: String?) {
         viewModelScope.launch {
             val history = matchRepository.observeHistory().first()
-            val completed = ActivityFilters.filterMatches(
-                matches = history.filter {
-                    it.status == MatchStatus.Completed || it.status == MatchStatus.Forfeited
-                },
-                mode = filter,
-                period = period,
-                playerId = playerId,
-            )
+            val filtered = ActivityFilters.filterMatches(history, filter, period, playerId)
+            _includesPartial.value = filtered.any { it.status == MatchStatus.InProgress }
 
             val aggregates = mutableMapOf<String, MutableAggregate>()
-            completed.forEach { summary ->
+            filtered.forEach { summary ->
+                val isPartial = summary.status == MatchStatus.InProgress
+                if (summary.status != MatchStatus.Completed &&
+                    summary.status != MatchStatus.Forfeited &&
+                    !isPartial
+                ) {
+                    return@forEach
+                }
                 summary.participantIds.zip(summary.participantNames).forEach { (id, name) ->
                     val bucket = aggregates.getOrPut(id) { MutableAggregate(id, name) }
-                    bucket.matchCount++
+                    if (!isPartial) {
+                        bucket.matchCount++
+                        if (summary.winnerPlayerId == id) bucket.wins++
+                    }
                 }
-                when (summary.matchType) {
+                val playerStats = when (summary.matchType) {
                     MatchType.X01 -> {
                         val session = matchSessionService.loadX01Session(summary.id) ?: return@forEach
-                        val stats = MatchStatsCalculator.x01Stats(
+                        MatchStatsCalculator.x01Stats(
                             summary.participantIds,
                             summary.participantNames,
                             session.events,
@@ -123,13 +143,10 @@ class StatisticsViewModel @Inject constructor(
                             session.state.players.associate { it.playerId to it.setsWon },
                             summary.winnerPlayerId,
                         )
-                        stats.forEach { row ->
-                            aggregates[row.playerId]?.addX01(row.average3Dart)
-                        }
                     }
                     MatchType.Cricket -> {
                         val session = matchSessionService.loadCricketSession(summary.id) ?: return@forEach
-                        val stats = MatchStatsCalculator.cricketStats(
+                        MatchStatsCalculator.cricketStats(
                             summary.participantIds,
                             summary.participantNames,
                             session.events,
@@ -138,11 +155,9 @@ class StatisticsViewModel @Inject constructor(
                             session.state.players.associate { it.playerId to it.setsWon },
                             summary.winnerPlayerId,
                         )
-                        stats.forEach { row ->
-                            aggregates[row.playerId]?.addCricket(row.marksPerRound)
-                        }
                     }
                 }
+                playerStats.forEach { row -> aggregates[row.playerId]?.merge(row) }
             }
 
             _rows.value = aggregates.values
@@ -153,24 +168,66 @@ class StatisticsViewModel @Inject constructor(
 
     private class MutableAggregate(val playerId: String, val name: String) {
         var matchCount: Int = 0
-        private val x01Avgs = mutableListOf<Double>()
-        private val cricketMprs = mutableListOf<Double>()
-
-        fun addX01(avg: Double) {
-            x01Avgs.add(avg)
-        }
-
-        fun addCricket(mpr: Double) {
-            cricketMprs.add(mpr)
-        }
-
-        fun toRow() = PlayerAggregateStats(
+        var wins: Int = 0
+        private var stats = PlayerMatchStats(
             playerId = playerId,
             name = name,
-            matchCount = matchCount,
-            x01Average = x01Avgs.takeIf { it.isNotEmpty() }?.average(),
-            cricketMpr = cricketMprs.takeIf { it.isNotEmpty() }?.average(),
+            darts = 0,
+            points = 0,
+            highestScore = 0,
+            highestCheckout = 0,
+            checkouts = 0,
+            legsWon = 0,
+            setsWon = 0,
+            score = 0,
+            marksPerRound = 0.0,
+            doubles = 0,
+            triples = 0,
         )
+        private var cricketMarks = 0
+        private var cricketRounds = 0
+
+        fun merge(row: PlayerMatchStats) {
+            stats = stats.copy(
+                darts = stats.darts + row.darts,
+                points = stats.points + row.points,
+                highestScore = maxOf(stats.highestScore, row.highestScore),
+                highestCheckout = maxOf(stats.highestCheckout, row.highestCheckout),
+                checkouts = stats.checkouts + row.checkouts,
+                legsWon = stats.legsWon + row.legsWon,
+                setsWon = stats.setsWon + row.setsWon,
+                score = stats.score + row.score,
+                doubles = stats.doubles + row.doubles,
+                triples = stats.triples + row.triples,
+                hitsBySector = mergeSectorHits(stats.hitsBySector, row.hitsBySector),
+            )
+            if (row.marksPerRound > 0) {
+                cricketMarks += (row.marksPerRound * row.darts / 3).toInt().coerceAtLeast(1)
+                cricketRounds += 1
+            }
+        }
+
+        fun toRow(): PlayerAggregateStats {
+            val mpr = if (cricketRounds > 0) cricketMarks.toDouble() / cricketRounds else stats.marksPerRound
+            return PlayerAggregateStats(
+                playerId = playerId,
+                name = name,
+                matchCount = matchCount,
+                wins = wins,
+                stats = stats.copy(marksPerRound = mpr),
+            )
+        }
+
+        private fun mergeSectorHits(
+            left: Map<String, Int>,
+            right: Map<String, Int>,
+        ): Map<String, Int> {
+            val merged = left.toMutableMap()
+            right.forEach { (sector, count) ->
+                merged[sector] = (merged[sector] ?: 0) + count
+            }
+            return merged
+        }
     }
 }
 
@@ -178,6 +235,7 @@ class StatisticsViewModel @Inject constructor(
 class HistoryDetailViewModel @Inject constructor(
     private val matchSessionService: MatchSessionService,
     private val matchRepository: MatchRepository,
+    private val l10n: L10n,
     private val json: Json,
 ) : ViewModel() {
     private val _state = kotlinx.coroutines.flow.MutableStateFlow(HistoryDetailUiState())
@@ -195,7 +253,8 @@ class HistoryDetailViewModel @Inject constructor(
                 val names = json.decodeFromString<List<String>>(entity.participantNamesJson)
                 val ids = json.decodeFromString<List<String>>(entity.participantIdsJson)
                 val type = MatchType.valueOf(entity.matchType)
-                val stats = when (type) {
+                val nameMap = ids.zip(names).toMap()
+                val (stats, timeline) = when (type) {
                     MatchType.X01 -> {
                         val session = matchSessionService.loadX01Session(matchId)
                             ?: run {
@@ -209,7 +268,7 @@ class HistoryDetailViewModel @Inject constructor(
                             session.state.players.associate { it.playerId to it.legsWon },
                             session.state.players.associate { it.playerId to it.setsWon },
                             entity.winnerPlayerId,
-                        )
+                        ) to MatchStatsCalculator.x01Timeline(session.events, nameMap, l10n)
                     }
                     MatchType.Cricket -> {
                         val session = matchSessionService.loadCricketSession(matchId)
@@ -225,7 +284,7 @@ class HistoryDetailViewModel @Inject constructor(
                             session.state.players.associate { it.playerId to it.legsWon },
                             session.state.players.associate { it.playerId to it.setsWon },
                             entity.winnerPlayerId,
-                        )
+                        ) to MatchStatsCalculator.cricketTimeline(session.events, nameMap, l10n)
                     }
                 }
                 val winnerIndex = ids.indexOf(entity.winnerPlayerId)
@@ -239,6 +298,7 @@ class HistoryDetailViewModel @Inject constructor(
                         modeLabel = MatchStatsCalculator.modeLabel(type),
                         winnerName = names.getOrNull(winnerIndex),
                         playerStats = stats,
+                        timeline = timeline,
                     ),
                 )
             } catch (_: Exception) {
@@ -268,7 +328,8 @@ data class HistoryDetailState(
     val participantNames: List<String>,
     val modeLabel: String,
     val winnerName: String? = null,
-    val playerStats: List<com.jacobrozell.dartbuddy.domain.service.PlayerMatchStats> = emptyList(),
+    val playerStats: List<PlayerMatchStats> = emptyList(),
+    val timeline: List<String> = emptyList(),
 )
 
 @Composable
@@ -279,10 +340,11 @@ fun ActivityScreen(
     viewModel: ActivityViewModel = hiltViewModel(),
     statisticsViewModel: StatisticsViewModel = hiltViewModel(),
 ) {
-    val history by viewModel.history.collectAsStateWithLifecycle()
+    val historyRows by viewModel.historyRows.collectAsStateWithLifecycle()
     val players by viewModel.players.collectAsStateWithLifecycle()
     val activeMatch by viewModel.activeMatch.collectAsStateWithLifecycle()
     val stats by statisticsViewModel.rows.collectAsStateWithLifecycle()
+    val includesPartial by statisticsViewModel.includesPartial.collectAsStateWithLifecycle()
     var segment by remember { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf(ActivityFilter.All) }
     var period by remember { mutableStateOf(ActivityPeriod.All) }
@@ -293,7 +355,8 @@ fun ActivityScreen(
         if (segment == 1) statisticsViewModel.load(filter, period, playerFilterId)
     }
 
-    val filteredHistory = ActivityFilters.filterMatches(history, filter, period, playerFilterId)
+    val filteredHistory = ActivityFilters.filterHistoryRows(historyRows, filter, period, playerFilterId)
+    val hasActiveFilters = filter != ActivityFilter.All || period != ActivityPeriod.All || playerFilterId != null
 
     val filterLabels = mapOf(
         ActivityFilter.All to stringResource(R.string.activity_filter_all),
@@ -319,53 +382,51 @@ fun ActivityScreen(
             )
         }
 
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = segment == 0,
-                onClick = { segment = 0 },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-            ) { Text(stringResource(R.string.activity_segment_history)) }
-            SegmentedButton(
-                selected = segment == 1,
-                onClick = { segment = 1 },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-            ) { Text(stringResource(R.string.activity_segment_statistics)) }
-        }
+        BrandSegmented(
+            options = listOf(0 to stringResource(R.string.activity_segment_history), 1 to stringResource(R.string.activity_segment_statistics)),
+            selected = segment,
+            onSelect = { segment = it },
+        )
 
-        HorizontalOptionChips(
-            label = "",
-            options = ActivityFilter.entries,
+        BrandSegmented(
+            options = ActivityFilter.entries.map { it to (filterLabels[it] ?: it.name) },
             selected = filter,
             onSelect = { filter = it },
-            labelFor = { filterLabels[it] ?: it.name },
         )
-        HorizontalOptionChips(
-            label = "",
-            options = ActivityPeriod.entries,
+        BrandSegmented(
+            options = ActivityPeriod.entries.map { it to (periodLabels[it] ?: it.name) },
             selected = period,
             onSelect = { period = it },
-            labelFor = { periodLabels[it] ?: it.name },
         )
-        HorizontalOptionChips(
-            label = stringResource(R.string.activity_filter_player),
-            options = playerOptions,
-            selected = playerOptions.find { it.first == playerFilterId } ?: playerOptions.first(),
-            onSelect = { playerFilterId = it.first },
-            labelFor = { it.second },
+        BrandSegmented(
+            options = playerOptions.map { it.first to it.second },
+            selected = playerFilterId,
+            onSelect = { playerFilterId = it },
         )
 
         when (segment) {
             0 -> {
                 if (filteredHistory.isEmpty()) {
-                    Text(stringResource(R.string.activity_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    PrimaryActionButton(
-                        title = stringResource(R.string.activity_empty_start_match),
-                        onClick = onStartMatch,
+                    Text(
+                        if (hasActiveFilters) stringResource(R.string.activity_empty_filtered)
+                        else stringResource(R.string.activity_empty),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (!hasActiveFilters && historyRows.isEmpty()) {
+                        PrimaryActionButton(
+                            title = stringResource(R.string.activity_empty_start_match),
+                            onClick = onStartMatch,
+                        )
+                    }
                 } else {
                     val visible = filteredHistory.take(historyLimit)
-                    visible.forEach { match ->
-                        HistoryRow(match, onClick = { onOpenMatch(match.id) })
+                    visible.forEach { row ->
+                        MatchHistoryCard(
+                            row = row,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenMatch(row.id) },
+                        )
                     }
                     if (filteredHistory.size > historyLimit) {
                         TextButton(onClick = { historyLimit += 30 }, modifier = Modifier.fillMaxWidth()) {
@@ -375,13 +436,114 @@ fun ActivityScreen(
                 }
             }
             1 -> {
+                if (includesPartial) {
+                    PartialMatchBanner()
+                }
                 if (stats.isEmpty()) {
                     Text(stringResource(R.string.activity_stats_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    StatsHeaderRow()
-                    stats.forEach { row -> StatsRow(row) }
+                    StatisticsTablesContent(
+                        stats = stats,
+                        filter = filter,
+                        playersById = players.associateBy { it.id },
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StatisticsTablesContent(
+    stats: List<PlayerAggregateStats>,
+    filter: ActivityFilter,
+    playersById: Map<String, com.jacobrozell.dartbuddy.data.repository.PlayerSummary>,
+) {
+    val playerStats = stats.map { it.stats }
+    Column(verticalArrangement = Arrangement.spacedBy(DS.s3)) {
+        StatTable(
+            title = stringResource(R.string.stats_games),
+            columns = listOf(
+                StatColumn(stringResource(R.string.stats_games), 0.7f),
+                StatColumn(stringResource(R.string.stats_wins), 0.6f),
+                StatColumn(stringResource(R.string.stats_column_wins_percent), 0.8f),
+            ),
+            rows = playerStats,
+        ) { row ->
+            val aggregate = stats.first { it.stats.playerId == row.playerId }
+            listOf(
+                aggregate.matchCount.toString(),
+                aggregate.wins.toString(),
+                "%.0f%%".format(aggregate.winPercent),
+            )
+        }
+
+        if (filter != ActivityFilter.Cricket) {
+            Text(stringResource(R.string.stats_section_average_highest), fontWeight = FontWeight.Bold)
+            StatTable(
+                columns = listOf(
+                    StatColumn(stringResource(R.string.stats_three_dart_average), 0.9f),
+                    StatColumn(stringResource(R.string.stats_highest_score), 0.8f),
+                ),
+                rows = playerStats,
+            ) { row ->
+                listOf("%.1f".format(row.average3Dart), row.highestScore.toString())
+            }
+            PlayerAverageBarChart(rows = playerStats, valueFor = { it.average3Dart })
+            Text(stringResource(R.string.stats_section_legs_checkout), fontWeight = FontWeight.Bold)
+            StatTable(
+                columns = listOf(
+                    StatColumn(stringResource(R.string.stats_column_legs), 0.6f),
+                    StatColumn(stringResource(R.string.stats_checkouts), 0.9f),
+                    StatColumn(stringResource(R.string.stats_best_checkout), 0.8f),
+                ),
+                rows = playerStats,
+            ) { row ->
+                listOf(
+                    row.legsWon.toString(),
+                    row.checkouts.toString(),
+                    if (row.highestCheckout > 0) row.highestCheckout.toString() else "—",
+                )
+            }
+        }
+
+        if (filter == ActivityFilter.Cricket) {
+            Text(stringResource(R.string.stats_section_marks_per_round), fontWeight = FontWeight.Bold)
+            StatTable(
+                columns = listOf(StatColumn(stringResource(R.string.activity_stats_cricket_mpr), 1f)),
+                rows = playerStats,
+            ) { row -> listOf("%.2f".format(row.marksPerRound)) }
+        }
+
+        Text(stringResource(R.string.stats_points), fontWeight = FontWeight.Bold)
+        StatTable(
+            columns = listOf(StatColumn(stringResource(R.string.stats_points), 1f)),
+            rows = playerStats,
+        ) { row -> listOf(row.points.toString()) }
+
+        Text(stringResource(R.string.stats_throws), fontWeight = FontWeight.Bold)
+        StatTable(
+            columns = listOf(
+                StatColumn(stringResource(R.string.stats_throws), 0.7f),
+                StatColumn(stringResource(R.string.stats_double_percent), 0.8f),
+                StatColumn(stringResource(R.string.stats_triple_percent), 0.8f),
+            ),
+            rows = playerStats,
+        ) { row ->
+            listOf(
+                row.darts.toString(),
+                "%.1f%%".format(row.doublePercent),
+                "%.1f%%".format(row.triplePercent),
+            )
+        }
+
+        if (filter != ActivityFilter.All) {
+            val mode = if (filter == ActivityFilter.Cricket) MatchType.Cricket else MatchType.X01
+            Text(stringResource(R.string.stats_hits_in_sector), fontWeight = FontWeight.Bold)
+            SectorHitsChart(
+                hitsBySector = MatchStatsCalculator.mergedSectorHits(playerStats),
+                matchType = mode,
+            )
         }
     }
 }
@@ -397,7 +559,10 @@ private fun StatsHeaderRow() {
 }
 
 @Composable
-private fun StatsRow(row: PlayerAggregateStats) {
+private fun StatsRow(
+    row: PlayerAggregateStats,
+    player: com.jacobrozell.dartbuddy.data.repository.PlayerSummary? = null,
+) {
     val dark = isSystemInDarkTheme()
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
     Row(
@@ -409,7 +574,14 @@ private fun StatsRow(row: PlayerAggregateStats) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(Modifier.weight(1.2f), horizontalArrangement = Arrangement.spacedBy(DS.s2), verticalAlignment = Alignment.CenterVertically) {
-            PlayerAvatar(name = row.name, colorToken = null, playerId = row.playerId, size = 28.dp)
+            PlayerAvatar(
+                name = row.name,
+                colorToken = player?.colorToken,
+                playerId = row.playerId,
+                avatarStyleRaw = player?.avatarStyleRaw,
+                isBot = player?.isBot == true,
+                size = 28.dp,
+            )
             Text(row.name, fontWeight = FontWeight.SemiBold)
         }
         Text(row.matchCount.toString(), modifier = Modifier.weight(0.6f))
@@ -459,34 +631,57 @@ fun HistoryDetailScreen(
 
             if (detail.playerStats.isNotEmpty()) {
                 Text(stringResource(R.string.activity_detail_stats_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                detail.playerStats.forEach { row ->
-                    val dark = isSystemInDarkTheme()
-                    val cardBg = if (dark) Brand.CardDark else Brand.CardLight
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(DS.radiusSm))
-                            .background(cardBg)
-                            .padding(DS.s3),
-                    ) {
-                        Text(row.name, fontWeight = FontWeight.Bold)
-                        when (detail.matchType) {
-                            MatchType.X01 -> {
-                                Text("3-dart avg: ${"%.1f".format(row.average3Dart)}", style = MaterialTheme.typography.bodySmall)
-                                Text("Darts: ${row.darts}", style = MaterialTheme.typography.bodySmall)
-                                Text("Legs: ${row.legsWon}", style = MaterialTheme.typography.bodySmall)
-                                if (row.highestCheckout > 0) {
-                                    Text("Best checkout: ${row.highestCheckout}", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                            MatchType.Cricket -> {
-                                Text("Score: ${row.score}", style = MaterialTheme.typography.bodySmall)
-                                Text("MPR: ${"%.2f".format(row.marksPerRound)}", style = MaterialTheme.typography.bodySmall)
-                                Text("Legs: ${row.legsWon}", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                if (detail.matchType == MatchType.X01) {
+                    StatTable(
+                        title = stringResource(R.string.stats_section_average_highest),
+                        columns = listOf(
+                            StatColumn(stringResource(R.string.stats_three_dart_average), 0.9f),
+                            StatColumn(stringResource(R.string.stats_highest_score), 0.8f),
+                        ),
+                        rows = detail.playerStats,
+                    ) { row -> listOf("%.1f".format(row.average3Dart), row.highestScore.toString()) }
+                    StatTable(
+                        title = stringResource(R.string.stats_section_legs_checkout),
+                        columns = listOf(
+                            StatColumn(stringResource(R.string.stats_column_legs), 0.6f),
+                            StatColumn(stringResource(R.string.stats_checkouts), 0.9f),
+                            StatColumn(stringResource(R.string.stats_best_checkout), 0.8f),
+                        ),
+                        rows = detail.playerStats,
+                    ) { row ->
+                        listOf(
+                            row.legsWon.toString(),
+                            row.checkouts.toString(),
+                            if (row.highestCheckout > 0) row.highestCheckout.toString() else "—",
+                        )
                     }
+                } else {
+                    StatTable(
+                        title = stringResource(R.string.stats_section_marks_per_round),
+                        columns = listOf(StatColumn(stringResource(R.string.activity_stats_cricket_mpr), 1f)),
+                        rows = detail.playerStats,
+                    ) { row -> listOf("%.2f".format(row.marksPerRound)) }
                 }
+                StatTable(
+                    title = stringResource(R.string.stats_throws),
+                    columns = listOf(
+                        StatColumn(stringResource(R.string.stats_throws), 0.7f),
+                        StatColumn(stringResource(R.string.stats_double_percent), 0.8f),
+                        StatColumn(stringResource(R.string.stats_triple_percent), 0.8f),
+                    ),
+                    rows = detail.playerStats,
+                ) { row ->
+                    listOf(
+                        row.darts.toString(),
+                        "%.1f%%".format(row.doublePercent),
+                        "%.1f%%".format(row.triplePercent),
+                    )
+                }
+                detail.playerStats.filter { it.hitsBySector.isNotEmpty() }.forEach { row ->
+                    Text(row.name, fontWeight = FontWeight.SemiBold)
+                    SectorHitsChart(hitsBySector = row.hitsBySector, matchType = detail.matchType)
+                }
+                HistoryTimelineSection(detail.timeline)
             }
 
             when (detail.status) {
@@ -524,33 +719,68 @@ fun HistoryDetailScreen(
 }
 
 @Composable
+private fun HistoryTimelineSection(timeline: List<String>) {
+    var expanded by remember { mutableStateOf(false) }
+    val dark = isSystemInDarkTheme()
+    val cardBg = if (dark) Brand.CardDark else Brand.CardLight
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DS.radiusSm))
+            .background(cardBg)
+            .padding(DS.s3),
+        verticalArrangement = Arrangement.spacedBy(DS.s2),
+    ) {
+        TextButton(
+            onClick = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                stringResource(R.string.history_timeline_section),
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+            )
+        }
+        if (expanded) {
+            if (timeline.isEmpty()) {
+                Text(stringResource(R.string.history_timeline_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                timeline.forEach { line ->
+                    Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PartialMatchBanner() {
+    val dark = isSystemInDarkTheme()
+    val cardBg = if (dark) Brand.CardDark else Brand.CardLight
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(DS.radiusSm),
+        color = cardBg,
+        border = BorderStroke(1.dp, Brand.Amber.copy(alpha = 0.5f)),
+    ) {
+        Text(
+            stringResource(R.string.stats_partial_match_banner),
+            modifier = Modifier.padding(DS.s3),
+            color = Brand.Amber,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
 private fun statusLabel(status: MatchStatus): String = when (status) {
     MatchStatus.Completed -> stringResource(R.string.activity_status_completed)
     MatchStatus.InProgress -> stringResource(R.string.activity_status_inProgress)
     MatchStatus.Forfeited -> stringResource(R.string.activity_status_forfeited)
     else -> status.name
-}
-
-@Composable
-private fun HistoryRow(match: MatchSummary, onClick: () -> Unit) {
-    val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a").withZone(ZoneId.systemDefault())
-    val dark = isSystemInDarkTheme()
-    val cardBg = if (dark) Brand.CardDark else Brand.CardLight
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(DS.radiusMd))
-            .background(cardBg)
-            .clickable(onClick = onClick)
-            .padding(DS.s3),
-        horizontalArrangement = Arrangement.spacedBy(DS.s3),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        GameModeBadge(match.matchType.name)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(match.participantNames.joinToString(" vs "), fontWeight = FontWeight.SemiBold)
-            Text(statusLabel(match.status), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(formatter.format(match.updatedAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
 }

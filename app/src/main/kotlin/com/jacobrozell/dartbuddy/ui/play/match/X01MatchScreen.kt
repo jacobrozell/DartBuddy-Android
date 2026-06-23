@@ -2,6 +2,7 @@ package com.jacobrozell.dartbuddy.ui.play.match
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,8 +32,12 @@ import com.jacobrozell.dartbuddy.ui.components.MatchGameplayHeader
 import com.jacobrozell.dartbuddy.ui.components.MatchScoringBody
 import com.jacobrozell.dartbuddy.ui.components.PlayerScoreCard
 import com.jacobrozell.dartbuddy.ui.components.segmentFromPadValue
-import com.jacobrozell.dartbuddy.ui.layout.isLandscapeOrientation
+import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
+import com.jacobrozell.dartbuddy.ui.layout.scoringPadColumnCount
+import com.jacobrozell.dartbuddy.ui.layout.usesIPadPortraitTwoPlayerScoreRow
 import com.jacobrozell.dartbuddy.ui.layout.usesPinnedActiveX01PlayerCard
+import com.jacobrozell.dartbuddy.ui.layout.usesStackedPlayerScoreCardLayout
+import com.jacobrozell.dartbuddy.ui.layout.usesWidePlayerScoreCardLayout
 import com.jacobrozell.dartbuddy.ui.theme.PlayerColors
 import kotlinx.coroutines.delay
 
@@ -68,16 +73,19 @@ fun X01MatchScreen(
         return
     }
 
-    val landscape = isLandscapeOrientation()
     val gameState = session.state
     val currentIndex = gameState.currentPlayerIndex
     val routes = viewModel.checkoutRoutes()
     val cards = viewModel.playerCards()
+    val layout = rememberLayoutContext(playerCount = cards.size)
+    val landscape = layout.isLandscape
+    val wideCards = usesWidePlayerScoreCardLayout(layout) && !usesStackedPlayerScoreCardLayout(layout)
+    val padColumns = scoringPadColumnCount(layout)
     val visitDartAlphas = viewModel.visitDartAlphas()
     val checkInBanner = viewModel.checkInBannerText()
     val activeCard = cards.getOrNull(currentIndex)
     val inactiveCards = if (activeCard != null) cards.filterIndexed { index, _ -> index != currentIndex } else cards
-    val pinsActive = usesPinnedActiveX01PlayerCard(cards.size, landscape)
+    val pinsActive = usesPinnedActiveX01PlayerCard(layout)
 
     LaunchedEffect(state.showLegWinBanner) {
         if (state.showLegWinBanner) {
@@ -103,18 +111,35 @@ fun X01MatchScreen(
                         isActive = true,
                         visitDarts = state.currentDarts,
                         dartSlotAlphas = visitDartAlphas,
+                        useWideLayout = wideCards,
                     )
                 }
             },
             scoreboard = {
                 val scoreCards = if (pinsActive) inactiveCards else cards
-                scoreCards.forEach { card ->
-                    X01PlayerScoreCard(
-                        card = card,
-                        isActive = !pinsActive && card.playerId == activeCard?.playerId,
-                        visitDarts = if (!pinsActive && card.playerId == activeCard?.playerId) state.currentDarts else emptyList(),
-                        dartSlotAlphas = if (!pinsActive && card.playerId == activeCard?.playerId) visitDartAlphas else emptyList(),
-                    )
+                if (usesIPadPortraitTwoPlayerScoreRow(layout, scoreCards.size)) {
+                    Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                        scoreCards.forEach { card ->
+                            X01PlayerScoreCard(
+                                card = card,
+                                isActive = !pinsActive && card.playerId == activeCard?.playerId,
+                                visitDarts = if (!pinsActive && card.playerId == activeCard?.playerId) state.currentDarts else emptyList(),
+                                dartSlotAlphas = if (!pinsActive && card.playerId == activeCard?.playerId) visitDartAlphas else emptyList(),
+                                useWideLayout = wideCards,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                } else {
+                    scoreCards.forEach { card ->
+                        X01PlayerScoreCard(
+                            card = card,
+                            isActive = !pinsActive && card.playerId == activeCard?.playerId,
+                            visitDarts = if (!pinsActive && card.playerId == activeCard?.playerId) state.currentDarts else emptyList(),
+                            dartSlotAlphas = if (!pinsActive && card.playerId == activeCard?.playerId) visitDartAlphas else emptyList(),
+                            useWideLayout = wideCards,
+                        )
+                    }
                 }
             },
             padChrome = {
@@ -155,6 +180,7 @@ fun X01MatchScreen(
                     showsVisitPreview = !landscape,
                     enabled = !state.isBotTurnActive,
                     dartSlotAlphas = visitDartAlphas,
+                    columnCount = padColumns,
                 )
             },
         )
@@ -192,8 +218,11 @@ private fun X01PlayerScoreCard(
     isActive: Boolean,
     visitDarts: List<DartInput>,
     dartSlotAlphas: List<Float> = emptyList(),
+    useWideLayout: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     PlayerScoreCard(
+        modifier = modifier,
         name = card.name,
         score = card.remainingScore,
         setsWon = card.setsWon,
@@ -204,5 +233,6 @@ private fun X01PlayerScoreCard(
         dartsThrown = card.dartsThrown,
         average = card.average,
         dartSlotAlphas = dartSlotAlphas,
+        useWideLayout = useWideLayout,
     )
 }

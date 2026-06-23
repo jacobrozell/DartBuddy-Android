@@ -2,6 +2,12 @@
 <resources>
     <style name="Theme.DartBuddy" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
     </style>
     <style name="Theme.DartBuddy.Splash" parent="Theme.DartBuddy">
         <item name="android:windowBackground">@drawable/splash_screen</item>

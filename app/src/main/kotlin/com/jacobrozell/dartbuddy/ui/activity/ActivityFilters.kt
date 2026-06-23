@@ -1,6 +1,7 @@
 package com.jacobrozell.dartbuddy.ui.activity
 
 import com.jacobrozell.dartbuddy.data.repository.MatchSummary
+import com.jacobrozell.dartbuddy.support.HistoryListRow
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -42,4 +43,31 @@ object ActivityFilters {
             modeOk && periodOk && playerOk
         }
     }
+
+    fun filterHistoryRows(
+        rows: List<HistoryListRow>,
+        mode: ActivityFilter,
+        period: ActivityPeriod,
+        playerId: String?,
+    ): List<HistoryListRow> {
+        val cutoff = period.cutoff()
+        return rows.filter { row ->
+            val modeOk = when (mode) {
+                ActivityFilter.All -> true
+                ActivityFilter.X01 -> row.matchType == com.jacobrozell.dartbuddy.domain.model.MatchType.X01
+                ActivityFilter.Cricket -> row.matchType == com.jacobrozell.dartbuddy.domain.model.MatchType.Cricket
+            }
+            val instant = Instant.ofEpochMilli(row.updatedAtEpochMillis)
+            val periodOk = cutoff == null || !instant.isBefore(cutoff)
+            val playerOk = playerId == null || row.standings.any { it.playerId == playerId }
+            modeOk && periodOk && playerOk
+        }
+    }
+
+    fun matchesFilter(
+        match: MatchSummary,
+        mode: ActivityFilter,
+        period: ActivityPeriod,
+        playerId: String?,
+    ): Boolean = filterMatches(listOf(match), mode, period, playerId).isNotEmpty()
 }

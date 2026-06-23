@@ -28,6 +28,7 @@ import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.rules.GameRulesCatalog
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,8 +121,12 @@ private fun RulesModePicker(selected: MatchType, onSelect: (MatchType) -> Unit) 
 }
 
 @Composable
-fun LearnToPlayButton(onClick: () -> Unit, compact: Boolean = false) {
-    TextButton(onClick = onClick, modifier = if (compact) Modifier else Modifier.fillMaxWidth()) {
+fun LearnToPlayButton(onClick: () -> Unit, compact: Boolean = false, testTag: String? = null) {
+    TextButton(
+        onClick = onClick,
+        modifier = (if (compact) Modifier else Modifier.fillMaxWidth())
+            .then(if (testTag != null) Modifier.a11yId(testTag) else Modifier),
+    ) {
         Text(
             stringResource(R.string.play_rules_learnButton),
             color = Brand.Green,

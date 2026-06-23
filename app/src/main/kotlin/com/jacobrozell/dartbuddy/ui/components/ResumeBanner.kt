@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.support.MotionPreferences
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
@@ -77,6 +79,7 @@ fun ResumeBanner(
             .border(2.dp, Brand.Green, RoundedCornerShape(DS.radiusSm))
             .background(cardBg)
             .clickable(onClick = onClick)
+            .a11yId(AccessibilityIds.PLAY_HOME_RESUME)
             .padding(DS.s4)
             .semantics { contentDescription = resumeLabel },
         verticalAlignment = Alignment.CenterVertically,

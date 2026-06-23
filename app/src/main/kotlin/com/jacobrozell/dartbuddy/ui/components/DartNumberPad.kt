@@ -21,16 +21,28 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jacobrozell.dartbuddy.R
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.domain.scoring.DartInput
 import com.jacobrozell.dartbuddy.domain.scoring.DartMultiplier
 import com.jacobrozell.dartbuddy.domain.scoring.DartSegment
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
-private val compactRows = listOf(
-    listOf(1, 2, 3, 4, 5, 6, 7),
-    listOf(8, 9, 10, 11, 12, 13, 14),
-    listOf(15, 16, 17, 18, 19, 20, 25),
-)
+internal fun scoringPadRows(columnCount: Int): List<List<Int>> = when (columnCount) {
+    4 -> listOf(
+        listOf(1, 2, 3, 4),
+        listOf(5, 6, 7, 8),
+        listOf(9, 10, 11, 12),
+        listOf(13, 14, 15, 16),
+        listOf(17, 18, 19, 20),
+        listOf(25),
+    )
+    else -> listOf(
+        listOf(1, 2, 3, 4, 5, 6, 7),
+        listOf(8, 9, 10, 11, 12, 13, 14),
+        listOf(15, 16, 17, 18, 19, 20, 25),
+    )
+}
 
 @Composable
 fun DartNumberPad(
@@ -46,6 +58,7 @@ fun DartNumberPad(
     maxDarts: Int = 3,
     enabled: Boolean = true,
     dartSlotAlphas: List<Float> = emptyList(),
+    columnCount: Int = 7,
 ) {
     val dark = isSystemInDarkTheme()
     val dartBoxColor = if (dark) Brand.DartBoxDark else Brand.DartBoxLight
@@ -56,7 +69,9 @@ fun DartNumberPad(
             Surface(
                 shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .a11yId(AccessibilityIds.DART_VISIT_PREVIEW),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -86,16 +101,21 @@ fun DartNumberPad(
             }
         }
 
-        compactRows.forEach { row ->
+        scoringPadRows(columnCount).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 row.forEach { value ->
                     val label = if (value == 25) stringResource(R.string.scoring_pad_bullLabel) else value.toString()
                     val style = if (value == 25) ScoringPadKeyStyle.Bull else ScoringPadKeyStyle.Number
+                    val testTag = when (value) {
+                        25 -> AccessibilityIds.PAD_BULL
+                        else -> AccessibilityIds.padSegment(value)
+                    }
                     ScoringPadKeyWeight(
                         label = label,
                         onClick = { onSegmentTap(value) },
                         style = style,
                         enabled = enabled && enteredDarts.size < maxDarts,
+                        testTag = testTag,
                     )
                 }
             }
@@ -109,6 +129,7 @@ fun DartNumberPad(
                 selected = selectedMultiplier == DartMultiplier.Double,
                 enabled = enabled,
                 accessibilityLabel = stringResource(R.string.scoring_multiplier_double_accessibility),
+                testTag = AccessibilityIds.PAD_DOUBLE,
             )
             ScoringPadKeyWeight(
                 label = stringResource(R.string.scoring_multiplier_triple),
@@ -117,6 +138,7 @@ fun DartNumberPad(
                 selected = selectedMultiplier == DartMultiplier.Triple,
                 enabled = enabled,
                 accessibilityLabel = stringResource(R.string.scoring_multiplier_triple_accessibility),
+                testTag = AccessibilityIds.PAD_TRIPLE,
             )
         }
 
@@ -127,12 +149,14 @@ fun DartNumberPad(
                 style = ScoringPadKeyStyle.Miss,
                 enabled = enteredDarts.size < maxDarts,
                 accessibilityLabel = stringResource(R.string.scoring_segment_miss_accessibility),
+                testTag = AccessibilityIds.PAD_MISS,
             )
             OutlinedUndoKey(
                 onClick = { if (enteredDarts.isEmpty()) onUndoTurn() else onUndoDart() },
                 modifier = Modifier.weight(1f),
                 enabled = enabled,
                 accessibilityLabel = stringResource(R.string.scoring_undoLastTurn),
+                testTag = AccessibilityIds.PAD_UNDO,
             )
         }
     }
@@ -144,6 +168,7 @@ private fun OutlinedUndoKey(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     accessibilityLabel: String,
+    testTag: String,
 ) {
     ScoringPadKey(
         label = "↩",
@@ -152,6 +177,7 @@ private fun OutlinedUndoKey(
         style = ScoringPadKeyStyle.Action,
         enabled = enabled,
         accessibilityLabel = accessibilityLabel,
+        testTag = testTag,
     )
 }
 

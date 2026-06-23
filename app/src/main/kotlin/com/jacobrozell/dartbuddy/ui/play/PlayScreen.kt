@@ -15,7 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import com.jacobrozell.dartbuddy.ui.components.ResumeBanner
+import com.jacobrozell.dartbuddy.ui.components.AddPlayerSheet
+import com.jacobrozell.dartbuddy.ui.components.TurnOrderDragHandle
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
@@ -29,17 +30,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -48,12 +51,16 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.data.repository.PlayerSummary
 import com.jacobrozell.dartbuddy.domain.model.CricketScoringMode
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.model.MatchType
+import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
+import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.domain.model.X01CheckInMode
 import com.jacobrozell.dartbuddy.domain.model.X01CheckoutMode
 import com.jacobrozell.dartbuddy.domain.model.X01LegFormat
@@ -62,15 +69,23 @@ import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.designsystem.BrandAppTitle
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.GameModeBadge
-import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
+import com.jacobrozell.dartbuddy.ui.play.setup.SetupOptionChip
+import com.jacobrozell.dartbuddy.ui.play.setup.SetupOptionChipGrid
+import com.jacobrozell.dartbuddy.ui.play.setup.setupChipBackground
+import com.jacobrozell.dartbuddy.ui.play.setup.setupCricketModeBackground
 import com.jacobrozell.dartbuddy.ui.designsystem.ErrorBanner
+import com.jacobrozell.dartbuddy.ui.designsystem.HintBanner
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupEmptyHint
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupHomeChrome
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
+import com.jacobrozell.dartbuddy.ui.components.ResumeBanner
+import com.jacobrozell.dartbuddy.ui.designsystem.rememberOptionLabelMaps
 import com.jacobrozell.dartbuddy.ui.designsystem.WideOrCompactSetup
 import com.jacobrozell.dartbuddy.ui.players.CustomBotCreationSheet
 import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
 import com.jacobrozell.dartbuddy.ui.play.rules.LearnToPlayButton
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +95,28 @@ fun PlayScreen(
     onResumeMatch: (String, String) -> Unit,
     viewModel: PlayViewModel = hiltViewModel(),
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.consumePendingNavigationSetup()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.consumePendingNavigationSetup()
+    }
+
+    DisposableEffect(state.activeMatch?.id) {
+        viewModel.logPlayHomeReady(state.activeMatch != null)
+        onDispose { }
+    }
+
     var showsEditOptions by remember { mutableStateOf(false) }
     var showModePicker by remember { mutableStateOf(false) }
     var showAddPlayer by remember { mutableStateOf(false) }
@@ -88,6 +124,8 @@ fun PlayScreen(
     var showCustomBot by remember { mutableStateOf(false) }
     var showRulesSheet by remember { mutableStateOf(false) }
     var newPlayerName by remember { mutableStateOf("") }
+    var newPlayerAvatar by remember { mutableStateOf(PlayerAvatarStyle.Dart) }
+    var newPlayerColor by remember { mutableStateOf(PlayerColorToken.Green) }
 
     val validationMessages = state.validationErrors.mapNotNull { key ->
         when (key) {
@@ -112,6 +150,7 @@ fun PlayScreen(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(DS.s4)) {
             BrandAppTitle(title = stringResource(R.string.brand_title))
+            state.rematchErrorMessage?.let { message -> HintBanner(message) }
             state.errorMessage?.let { ErrorBanner(it) }
             state.activeMatch?.let { match ->
                 ResumeBanner(
@@ -175,29 +214,27 @@ fun PlayScreen(
     }
 
     if (showAddPlayer) {
-        AlertDialog(
-            onDismissRequest = { showAddPlayer = false },
-            title = { Text(stringResource(R.string.players_add)) },
-            text = {
-                OutlinedTextField(
-                    value = newPlayerName,
-                    onValueChange = { newPlayerName = it },
-                    label = { Text(stringResource(R.string.players_new_name)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        AddPlayerSheet(
+            name = newPlayerName,
+            onNameChange = { newPlayerName = it },
+            avatarStyle = newPlayerAvatar,
+            onAvatarStyleChange = { newPlayerAvatar = it },
+            colorToken = newPlayerColor,
+            onColorChange = { newPlayerColor = it },
+            onConfirm = {
+                if (newPlayerName.isNotBlank()) {
+                    viewModel.addPlayer(
+                        newPlayerName.trim(),
+                        newPlayerColor.raw,
+                        newPlayerAvatar.raw,
+                    )
+                    newPlayerName = ""
+                    newPlayerAvatar = PlayerAvatarStyle.Dart
+                    newPlayerColor = PlayerColorToken.Green
+                    showAddPlayer = false
+                }
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (newPlayerName.isNotBlank()) {
-                        viewModel.addPlayer(newPlayerName.trim())
-                        newPlayerName = ""
-                        showAddPlayer = false
-                    }
-                }) { Text(stringResource(R.string.common_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddPlayer = false }) { Text(stringResource(R.string.common_cancel)) }
-            },
+            onDismiss = { showAddPlayer = false },
         )
     }
 
@@ -261,7 +298,7 @@ private fun ModeSection(
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium,
             )
-            LearnToPlayButton(onClick = onLearnToPlay, compact = true)
+            LearnToPlayButton(onClick = onLearnToPlay, compact = true, testTag = AccessibilityIds.SETUP_LEARN_TO_PLAY)
         }
         SetupSectionCard {
             Row(verticalAlignment = Alignment.Top) {
@@ -275,7 +312,7 @@ private fun ModeSection(
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onToggleOptions) {
+                TextButton(onClick = onToggleOptions, modifier = Modifier.a11yId(AccessibilityIds.SETUP_EDIT_OPTIONS)) {
                     Icon(
                         if (showsEditOptions) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
@@ -338,6 +375,7 @@ private fun RosterSection(state: PlayUiState, viewModel: PlayViewModel, onAddPla
                     position = index + 1,
                     canMoveUp = index > 0,
                     canMoveDown = index < state.selectedPlayers.lastIndex,
+                    reorderEnabled = !state.randomOrder,
                     onMoveUp = { viewModel.moveSelectedPlayer(index, index - 1) },
                     onMoveDown = { viewModel.moveSelectedPlayer(index, index + 1) },
                     onRemove = { viewModel.removeFromSelection(player.id) },
@@ -361,11 +399,11 @@ private fun RosterActionButtons(onAddPlayer: () -> Unit, onAddBot: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(DS.s2),
     ) {
-        TextButton(onClick = onAddPlayer) {
+        TextButton(onClick = onAddPlayer, modifier = Modifier.a11yId(AccessibilityIds.SETUP_ADD_PLAYER)) {
             Icon(Icons.Default.Add, contentDescription = null, tint = Brand.Green)
             Text(stringResource(R.string.play_setup_addPlayers), color = Brand.Green, fontWeight = FontWeight.SemiBold)
         }
-        TextButton(onClick = onAddBot) {
+        TextButton(onClick = onAddBot, modifier = Modifier.a11yId(AccessibilityIds.SETUP_ADD_BOT)) {
             Text(stringResource(R.string.play_setup_addBot), color = Brand.Green, fontWeight = FontWeight.SemiBold)
         }
     }
@@ -374,7 +412,7 @@ private fun RosterActionButtons(onAddPlayer: () -> Unit, onAddBot: () -> Unit) {
 @Composable
 private fun RandomOrderToggle(checked: Boolean, onToggle: () -> Unit) {
     Row(
-        modifier = Modifier.clickable(onClick = onToggle),
+        modifier = Modifier.clickable(onClick = onToggle).a11yId(AccessibilityIds.SETUP_RANDOM_ORDER),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DS.s2),
     ) {
@@ -393,6 +431,7 @@ private fun TurnOrderRow(
     position: Int,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    reorderEnabled: Boolean,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onRemove: () -> Unit,
@@ -410,7 +449,14 @@ private fun TurnOrderRow(
         horizontalArrangement = Arrangement.spacedBy(DS.s3),
     ) {
         Text(stringResource(R.string.common_playerOrdinal, position), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        PlayerAvatar(name = player.name, colorToken = player.colorToken, playerId = player.id, size = 28.dp)
+        PlayerAvatar(
+            name = player.name,
+            colorToken = player.colorToken,
+            playerId = player.id,
+            avatarStyleRaw = player.avatarStyleRaw,
+            isBot = player.isBot,
+            size = 28.dp,
+        )
         Text(player.name, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         if (player.isBot) {
             Text(
@@ -427,6 +473,11 @@ private fun TurnOrderRow(
         }
         if (canMoveUp) IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up") }
         if (canMoveDown) IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down") }
+        TurnOrderDragHandle(
+            enabled = reorderEnabled,
+            onDragUp = onMoveUp,
+            onDragDown = onMoveDown,
+        )
         IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.play_setup_removeFromMatch))
         }
@@ -443,7 +494,14 @@ private fun AvailablePlayerRow(player: PlayerSummary, onAdd: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DS.s3),
     ) {
-        PlayerAvatar(name = player.name, colorToken = player.colorToken, playerId = player.id, size = 28.dp)
+        PlayerAvatar(
+            name = player.name,
+            colorToken = player.colorToken,
+            playerId = player.id,
+            avatarStyleRaw = player.avatarStyleRaw,
+            isBot = player.isBot,
+            size = 28.dp,
+        )
         Text(player.name, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
         Icon(Icons.Default.Add, contentDescription = null, tint = Brand.Green)
     }
@@ -463,57 +521,146 @@ private fun ModePickerRow(type: MatchType, selected: Boolean, onClick: () -> Uni
 
 @Composable
 private fun X01SetupOptions(state: PlayUiState, viewModel: PlayViewModel) {
-    val checkoutLabels = mapOf(
-        X01CheckoutMode.SingleOut to stringResource(R.string.x01_checkout_straightOut),
-        X01CheckoutMode.DoubleOut to stringResource(R.string.x01_checkout_doubleOut),
-        X01CheckoutMode.MasterOut to stringResource(R.string.x01_checkout_masterOut),
+    val labels = rememberOptionLabelMaps()
+    val chipBg = setupChipBackground()
+    SetupOptionChipGrid(
+        cells = listOf<@Composable () -> Unit>(
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_start_score),
+                    value = state.x01StartScore.toString(),
+                    backgroundColor = chipBg,
+                    options = com.jacobrozell.dartbuddy.domain.model.X01StartScores.all,
+                    labelFor = { it.toString() },
+                    onSelect = viewModel::updateX01StartScore,
+                    testTag = AccessibilityIds.SETUP_START_SCORE_CHIP,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_checkout),
+                    value = labels.checkout(state.x01CheckoutMode),
+                    backgroundColor = chipBg,
+                    options = com.jacobrozell.dartbuddy.domain.model.X01CheckoutMode.entries,
+                    labelFor = labels.checkout,
+                    onSelect = viewModel::updateX01CheckoutMode,
+                    testTag = AccessibilityIds.SETUP_CHECKOUT_CHIP,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_sets_enabled),
+                    value = if (state.x01SetsEnabled) state.x01SetsToWin.toString() else stringResource(R.string.common_off),
+                    backgroundColor = chipBg,
+                    options = listOf(1, 2, 3),
+                    labelFor = { it.toString() },
+                    onSelect = {
+                        viewModel.updateX01SetsEnabled(true)
+                        viewModel.updateX01SetsToWin(it)
+                    },
+                    testTag = AccessibilityIds.SETUP_SETS_CHIP,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_leg_format),
+                    value = labels.legFormat(state.x01LegFormat),
+                    backgroundColor = chipBg,
+                    options = com.jacobrozell.dartbuddy.domain.model.X01LegFormat.entries,
+                    labelFor = labels.legFormat,
+                    onSelect = viewModel::updateX01LegFormat,
+                    testTag = AccessibilityIds.SETUP_LEG_FORMAT_CHIP,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_checkin),
+                    value = labels.checkIn(state.x01CheckInMode),
+                    backgroundColor = chipBg,
+                    options = com.jacobrozell.dartbuddy.domain.model.X01CheckInMode.entries,
+                    labelFor = labels.checkIn,
+                    onSelect = viewModel::updateX01CheckInMode,
+                    testTag = AccessibilityIds.SETUP_CHECKIN_CHIP,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_legs_to_win),
+                    value = state.x01LegsToWin.toString(),
+                    backgroundColor = chipBg,
+                    options = listOf(1, 2, 3, 5),
+                    labelFor = { it.toString() },
+                    onSelect = viewModel::updateX01LegsToWin,
+                    testTag = AccessibilityIds.SETUP_LEGS_CHIP,
+                )
+            },
+        ),
     )
-    val checkInLabels = mapOf(
-        X01CheckInMode.StraightIn to stringResource(R.string.x01_checkin_straightIn),
-        X01CheckInMode.DoubleIn to stringResource(R.string.x01_checkin_doubleIn),
-        X01CheckInMode.MasterIn to stringResource(R.string.x01_checkin_masterIn),
-    )
-    val legFormatLabels = mapOf(
-        X01LegFormat.FirstTo to stringResource(R.string.x01_legFormat_firstTo),
-        X01LegFormat.BestOf to stringResource(R.string.x01_legFormat_bestOf),
-    )
-    HorizontalOptionChips(stringResource(R.string.settings_label_start_score), X01StartScores.all, state.x01StartScore, viewModel::updateX01StartScore)
-    HorizontalOptionChips(stringResource(R.string.settings_label_checkout), X01CheckoutMode.entries, state.x01CheckoutMode, viewModel::updateX01CheckoutMode) { checkoutLabels[it] ?: it.name }
-    HorizontalOptionChips(stringResource(R.string.settings_label_checkin), X01CheckInMode.entries, state.x01CheckInMode, viewModel::updateX01CheckInMode) { checkInLabels[it] ?: it.name }
-    HorizontalOptionChips(stringResource(R.string.settings_label_leg_format), X01LegFormat.entries, state.x01LegFormat, viewModel::updateX01LegFormat) { legFormatLabels[it] ?: it.name }
-    HorizontalOptionChips(stringResource(R.string.settings_label_legs_to_win), listOf(1, 2, 3, 5), state.x01LegsToWin, viewModel::updateX01LegsToWin)
-    ToggleRow(stringResource(R.string.settings_sets_enabled), state.x01SetsEnabled, viewModel::updateX01SetsEnabled)
-    if (state.x01SetsEnabled) {
-        HorizontalOptionChips(stringResource(R.string.settings_sets_enabled), listOf(1, 2, 3), state.x01SetsToWin, viewModel::updateX01SetsToWin)
-    }
 }
 
 @Composable
 private fun CricketSetupOptions(state: PlayUiState, viewModel: PlayViewModel) {
-    val scoringLabels = mapOf(
-        CricketScoringMode.Standard to stringResource(R.string.play_cricket_mode_normal),
-        CricketScoringMode.CutThroat to stringResource(R.string.play_cricket_mode_cutThroat),
+    val labels = rememberOptionLabelMaps()
+    val chipBg = setupChipBackground()
+    val modeBg = setupCricketModeBackground()
+    val onLabel = stringResource(R.string.common_on)
+    val offLabel = stringResource(R.string.common_off)
+    SetupOptionChipGrid(
+        cells = listOf<@Composable () -> Unit>(
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_points_scoring),
+                    value = if (state.cricketPointsEnabled) onLabel else offLabel,
+                    backgroundColor = chipBg,
+                    options = listOf(true, false),
+                    labelFor = { if (it) onLabel else offLabel },
+                    onSelect = viewModel::updateCricketPointsEnabled,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_scoring_mode),
+                    value = labels.cricketScoring(state.cricketScoringMode),
+                    backgroundColor = modeBg,
+                    options = com.jacobrozell.dartbuddy.domain.model.CricketScoringMode.entries,
+                    labelFor = labels.cricketScoring,
+                    onSelect = viewModel::updateCricketScoringMode,
+                    enabled = state.cricketPointsEnabled,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_leg_format),
+                    value = labels.legFormat(state.cricketLegFormat),
+                    backgroundColor = chipBg,
+                    options = com.jacobrozell.dartbuddy.domain.model.X01LegFormat.entries,
+                    labelFor = labels.legFormat,
+                    onSelect = viewModel::updateCricketLegFormat,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_label_legs_to_win),
+                    value = state.cricketLegsToWin.toString(),
+                    backgroundColor = chipBg,
+                    options = listOf(1, 2, 3, 5),
+                    labelFor = { it.toString() },
+                    onSelect = viewModel::updateCricketLegsToWin,
+                )
+            },
+            {
+                SetupOptionChip(
+                    title = stringResource(R.string.settings_sets_enabled),
+                    value = if (state.cricketSetsEnabled) state.cricketSetsToWin.toString() else stringResource(R.string.common_off),
+                    backgroundColor = chipBg,
+                    options = listOf(1, 2, 3),
+                    labelFor = { it.toString() },
+                    onSelect = {
+                        viewModel.updateCricketSetsEnabled(true)
+                        viewModel.updateCricketSetsToWin(it)
+                    },
+                )
+            },
+        ),
     )
-    val legFormatLabels = mapOf(
-        X01LegFormat.FirstTo to stringResource(R.string.x01_legFormat_firstTo),
-        X01LegFormat.BestOf to stringResource(R.string.x01_legFormat_bestOf),
-    )
-    ToggleRow(stringResource(R.string.settings_points_scoring), state.cricketPointsEnabled, viewModel::updateCricketPointsEnabled)
-    if (state.cricketPointsEnabled) {
-        HorizontalOptionChips(stringResource(R.string.settings_label_scoring_mode), CricketScoringMode.entries, state.cricketScoringMode, viewModel::updateCricketScoringMode) { scoringLabels[it] ?: it.name }
-    }
-    HorizontalOptionChips(stringResource(R.string.settings_label_leg_format), X01LegFormat.entries, state.cricketLegFormat, viewModel::updateCricketLegFormat) { legFormatLabels[it] ?: it.name }
-    HorizontalOptionChips(stringResource(R.string.settings_label_legs_to_win), listOf(1, 2, 3, 5), state.cricketLegsToWin, viewModel::updateCricketLegsToWin)
-    ToggleRow(stringResource(R.string.settings_sets_enabled), state.cricketSetsEnabled, viewModel::updateCricketSetsEnabled)
-    if (state.cricketSetsEnabled) {
-        HorizontalOptionChips(stringResource(R.string.settings_sets_enabled), listOf(1, 2, 3), state.cricketSetsToWin, viewModel::updateCricketSetsToWin)
-    }
-}
-
-@Composable
-private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(label)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
 }
