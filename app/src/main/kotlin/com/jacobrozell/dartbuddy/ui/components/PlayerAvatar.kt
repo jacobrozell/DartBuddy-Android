@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
@@ -37,7 +38,9 @@ fun PlayerAvatar(
             imageVector = style.icon,
             contentDescription = name,
             tint = Color.White,
-            modifier = Modifier.size(size * 0.48f),
+            modifier = Modifier
+                .size(size * 0.48f)
+                .then(if (style == PlayerAvatarStyle.Dart) Modifier.rotate(135f) else Modifier),
         )
     }
 }

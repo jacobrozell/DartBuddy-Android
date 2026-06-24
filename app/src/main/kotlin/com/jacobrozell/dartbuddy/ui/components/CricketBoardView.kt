@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.domain.engine.CricketTarget
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
@@ -36,6 +38,10 @@ data class CricketBoardColumn(
     val marks: Map<String, Int>,
     val isActive: Boolean,
     val accentColor: Color,
+    val dartsThrown: Int = 0,
+    val marksPerRound: Double = 0.0,
+    val setsEnabled: Boolean = false,
+    val setsWon: Int = 0,
 )
 
 @Composable
@@ -54,7 +60,7 @@ fun CricketBoardView(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column(modifier = Modifier.width(36.dp)) {
-            Box(Modifier.height(52.dp))
+            Box(Modifier.height(64.dp))
             CricketTarget.allCases.forEach { target ->
                 Box(
                     modifier = Modifier
@@ -69,7 +75,7 @@ fun CricketBoardView(
                     )
                 }
             }
-            Box(Modifier.height(48.dp))
+            Box(Modifier.height(72.dp))
         }
 
         columns.forEach { column ->
@@ -85,19 +91,35 @@ fun CricketBoardView(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(64.dp)
                         .padding(horizontal = 6.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        column.name,
-                        fontWeight = if (column.isActive) FontWeight.Bold else FontWeight.Medium,
-                        color = if (column.isActive) column.accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            column.name,
+                            fontWeight = if (column.isActive) FontWeight.Bold else FontWeight.Medium,
+                            color = if (column.isActive) column.accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Text(
+                            "${column.score}",
+                            fontWeight = FontWeight.Black,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        if (column.isActive) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.dp)
+                                    .background(column.accentColor),
+                            )
+                        }
+                    }
                 }
 
                 CricketTarget.allCases.forEach { target ->
@@ -117,17 +139,38 @@ fun CricketBoardView(
                 }
 
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.TopStart,
                 ) {
-                    Text(
-                        "${column.score}",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (column.isActive) column.accentColor else MaterialTheme.colorScheme.onSurface,
-                    )
+                    CricketColumnFooter(column)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CricketColumnFooter(column: CricketBoardColumn) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            stringResource(R.string.play_cricket_column_footer_darts, column.dartsThrown),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            stringResource(R.string.play_cricket_column_footer_mpr, column.marksPerRound),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (column.setsEnabled) {
+            Text(
+                stringResource(R.string.play_cricket_column_footer_sets, column.setsWon),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

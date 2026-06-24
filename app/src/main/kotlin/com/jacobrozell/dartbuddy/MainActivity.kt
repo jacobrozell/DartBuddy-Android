@@ -8,10 +8,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,13 +32,19 @@ import com.jacobrozell.dartbuddy.data.prefs.OnboardingStore
 import com.jacobrozell.dartbuddy.data.repository.AppSettings
 import com.jacobrozell.dartbuddy.data.repository.SettingsRepository
 import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingMode
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
+import com.jacobrozell.dartbuddy.support.MotionPreferences
 import com.jacobrozell.dartbuddy.support.navigation.DeepLinkParser
+import com.jacobrozell.dartbuddy.ui.launch.LaunchSplashScreen
+import com.jacobrozell.dartbuddy.ui.layout.SyncSystemBarAppearance
 import com.jacobrozell.dartbuddy.ui.navigation.DartBuddyNavHost
 import com.jacobrozell.dartbuddy.ui.onboarding.OnboardingFlow
-import com.jacobrozell.dartbuddy.ui.layout.SyncSystemBarAppearance
 import com.jacobrozell.dartbuddy.ui.theme.DartBuddyTheme
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -61,6 +68,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        configureProductSurface(intent)
         if (intent.hasSeedExtras()) {
             runBlocking {
                 demoSeeder.seedIfRequested(intent)
@@ -74,9 +82,6 @@ class MainActivity : ComponentActivity() {
         }
         if (intent.getBooleanExtra(DemoSeedExtras.SKIP_ONBOARDING, false)) {
             onboardingStore.markCompleted()
-        }
-        lifecycleScope.launch {
-            appBootstrapper.onLaunch()
         }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
@@ -92,6 +97,27 @@ class MainActivity : ComponentActivity() {
                 )
             }
             var pendingDeepLink by remember { mutableStateOf(deepLinkPathFrom(intent)) }
+            var showLaunchSplash by remember { mutableStateOf(true) }
+            var bootstrapReady by remember { mutableStateOf(false) }
+            val reduceMotion = MotionPreferences.prefersReducedMotion(this)
+
+            LaunchedEffect(Unit) {
+                coroutineScope {
+                    val hold = async {
+                        if (!reduceMotion) delay(700)
+                    }
+                    val bootstrap = async { appBootstrapper.onLaunch() }
+                    hold.await()
+                    bootstrap.await()
+                    bootstrapReady = true
+                    if (reduceMotion) {
+                        showLaunchSplash = false
+                    } else {
+                        delay(50)
+                        showLaunchSplash = false
+                    }
+                }
+            }
 
             DisposableEffect(onboardingStore) {
                 val listener = {
@@ -105,22 +131,27 @@ class MainActivity : ComponentActivity() {
             val darkTheme = when (settings.appearanceMode) {
                 "light" -> false
                 "dark" -> true
-                else -> isSystemInDarkTheme()
+                else -> androidx.compose.foundation.isSystemInDarkTheme()
             }
 
             DartBuddyTheme(darkTheme = darkTheme) {
                 SyncSystemBarAppearance(darkTheme = darkTheme)
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    DartBuddyNavHost(
-                        deepLinkPath = if (showOnboarding) null else pendingDeepLink,
-                        onDeepLinkConsumed = { pendingDeepLink = null },
-                    )
-                }
-                if (showOnboarding) {
-                    OnboardingFlow(
-                        mode = onboardingMode,
-                        onFinished = { showOnboarding = false },
-                    )
+                Box(Modifier.fillMaxSize()) {
+                    if (bootstrapReady) {
+                        Surface(modifier = Modifier.fillMaxSize()) {
+                            DartBuddyNavHost(
+                                deepLinkPath = if (showOnboarding) null else pendingDeepLink,
+                                onDeepLinkConsumed = { pendingDeepLink = null },
+                            )
+                        }
+                        if (showOnboarding) {
+                            OnboardingFlow(
+                                mode = onboardingMode,
+                                onFinished = { showOnboarding = false },
+                            )
+                        }
+                    }
+                    LaunchSplashScreen(visible = showLaunchSplash)
                 }
             }
         }
@@ -130,6 +161,14 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        configureProductSurface(intent)
+    }
+
+    private fun configureProductSurface(intent: Intent?) {
+        ProductSurface.configureFromIntentExtras(
+            hasLean = intent?.getBooleanExtra(ProductSurface.LEAN_SURFACE_LAUNCH_ARGUMENT, false) == true,
+            hasFull = intent?.getBooleanExtra(ProductSurface.FULL_SURFACE_LAUNCH_ARGUMENT, false) == true,
+        )
     }
 
     private fun deepLinkPathFrom(intent: Intent?): String? =

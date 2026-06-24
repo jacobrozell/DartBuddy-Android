@@ -98,8 +98,25 @@ class GameplayLayoutTest {
     }
 
     @Test
-    fun iPadPortraitTwoPlayerRow() {
-        assertTrue(usesIPadPortraitTwoPlayerScoreRow(ctx(720, 800, 1200), playerCount = 2))
-        assertFalse(usesIPadPortraitTwoPlayerScoreRow(ctx(720, 800, 1200), playerCount = 3))
+    fun accessibilityTabListLayout_atFontThreshold() {
+        assertFalse(usesAccessibilityTabListLayout(ctx(400, 400, 800, fontScale = 1.2f)))
+        assertTrue(usesAccessibilityTabListLayout(ctx(400, 400, 800, fontScale = 1.4f)))
+    }
+
+    @Test
+    fun tabScrollBottomPadding_extraAtAccessibilityFont() {
+        assertEquals(24, tabScrollBottomPadding(ctx(400, 400, 800, fontScale = 1f)).value.toInt())
+        assertTrue(tabScrollBottomPadding(ctx(400, 400, 800, fontScale = 1.5f)).value > 24)
+    }
+
+    @Test
+    fun setupScrollBottomPadding_extraAtAccessibilityFont() {
+        assertEquals(16, setupScrollBottomPadding(ctx(400, 400, 800, fontScale = 1f)).value.toInt())
+        assertEquals(120, setupScrollBottomPadding(ctx(400, 400, 800, fontScale = 1.5f)).value.toInt())
+    }
+
+    @Test
+    fun stackedScoreCards_atAccessibilityFont() {
+        assertTrue(usesStackedPlayerScoreCardLayout(ctx(400, 400, 800, fontScale = 1.4f)))
     }
 }

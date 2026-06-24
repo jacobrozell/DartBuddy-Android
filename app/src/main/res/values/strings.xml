@@ -20,7 +20,10 @@
     <string name="play_setup_turnOrderRandomHint">Order will be shuffled when the match starts.</string>
     <string name="play_setup_addPlayers">Add players</string>
     <string name="play_setup_removeFromMatch">Remove from match</string>
-    <string name="play_setup_playersEmptyHint">Add at least one player to start.</string>
+    <string name="play_setup_playersEmptyHint">Tap Add Players to create players, or add a bot. Then tap + next to each name to add them to Turn order.</string>
+    <string name="play_setup_chip_accessibility_format">%1$s, %2$s</string>
+    <string name="play_setup_selected_mode_accessibility_format">%1$s. %2$s</string>
+    <string name="play_home_resume_accessibility_format">%1$s, %2$s match in progress</string>
     <string name="play_setup_cricketMinPlayers">Cricket needs at least 2 players.</string>
     <string name="play_home_resumeButton">Resume Match</string>
     <string name="play_x01_title">X01</string>
@@ -30,6 +33,11 @@
     <string name="play_cricket_mode_normal">Normal</string>
     <string name="play_cricket_mode_cutThroat">Cut Throat</string>
     <string name="play_cricket_subtitle_noScore">No Score</string>
+    <string name="play_cricket_column_footer_darts">%1$d darts</string>
+    <string name="play_cricket_column_footer_mpr">%1$.2f MPR</string>
+    <string name="play_cricket_column_footer_sets">Set %1$d</string>
+    <string name="play_setup_move_up">Move up</string>
+    <string name="play_setup_move_down">Move down</string>
     <string name="x01_checkout_straightOut">Straight Out</string>
     <string name="x01_checkout_doubleOut">Double Out</string>
     <string name="x01_checkout_masterOut">Master Out</string>
@@ -114,6 +122,18 @@
 
     <string name="players_create_hint">Avatar and color appear on the scoreboard and in the player list.</string>
     <string name="players_title">Players</string>
+    <string name="players_empty_title">No players</string>
+    <string name="players_empty_description">Add a player to start matches.</string>
+    <string name="players_search_no_results">No players match your search.</string>
+    <string name="players_search_placeholder">Search</string>
+    <string name="players_search_accessibility">Search players</string>
+    <string name="players_section_title">Players</string>
+    <string name="players_bots_section_title">Bots</string>
+    <string name="players_row_accessibility_format">%1$s%2$s</string>
+    <string name="players_row_bot_suffix">, bot %1$s</string>
+    <string name="players_row_archived_suffix">, archived</string>
+    <string name="players_row_primary_suffix">, your profile</string>
+    <string name="custom_bot_row_accessibility_suffix">, custom bot, %.0f average, %.2f marks per round</string>
     <string name="players_add">Add player</string>
     <string name="players_new_name">New player name</string>
     <string name="players_archive">Archive</string>
@@ -126,6 +146,17 @@
     <string name="activity_empty">No matches yet. Start a game from Play.</string>
     <string name="activity_empty_start_match">Start a Match</string>
     <string name="activity_load_more">Load more</string>
+    <string name="activity_load_more_accessibility">Load more games</string>
+    <string name="history_row_accessibility_format">%1$s. %2$s. %3$s</string>
+    <string name="history_row_forfeit_accessibility_suffix">Match ended by forfeit.</string>
+    <string name="history_standing_winner_role">, winner</string>
+    <string name="history_standing_accessibility_format">%1$s%2$s, score %3$d</string>
+    <string name="stats_table_row_accessibility_format">%1$d. %2$s. %3$s</string>
+    <string name="stats_stat_tile_accessibility_format">%1$s, %2$s</string>
+    <string name="stats_partial_match_banner_accessibility">Statistics include your in-progress match.</string>
+    <string name="activity_filter_mode_accessibility_format">Game filter, %1$s</string>
+    <string name="activity_filter_player_accessibility_format">Player filter, %1$s</string>
+    <string name="activity_filter_period_accessibility_format">Time period, %1$s</string>
     <string name="activity_detail_error">Could not load match details.</string>
     <string name="activity_detail_retry">Try again</string>
     <string name="activity_status_completed">Completed</string>
@@ -144,8 +175,20 @@
     <string name="settings_sets_enabled">Sets enabled</string>
     <string name="settings_points_scoring">Points scoring</string>
     <string name="settings_resetAll">Reset all local data</string>
+    <string name="settings_reset_accessibility">Reset all data</string>
+    <string name="settings_support_faq_a11y">Open support and FAQ in browser</string>
+    <string name="settings_support_feedback_a11y">Send feedback by email</string>
+    <string name="settings_support_privacy_a11y">Open privacy policy in browser</string>
+    <string name="settings_support_accessibility_a11y">Open accessibility information in browser</string>
+    <string name="onboarding_support_help_a11y">Open support and FAQ in browser</string>
+    <string name="onboarding_support_feedback_a11y">Send feedback by email</string>
+    <string name="onboarding_support_privacy_a11y">Open privacy policy in browser</string>
+    <string name="onboarding_support_accessibility_a11y">Open accessibility information in browser</string>
     <string name="settings_resetConfirm">Deletes all players, matches, and settings. This cannot be undone.</string>
     <string name="settings_version">Dart Buddy Android 1.0.0</string>
+    <string name="settings_about_version_format">Dart Buddy · Version %1$s</string>
+    <string name="settings_support_rate">Rate Dart Buddy</string>
+    <string name="settings_support_rate_a11y">Rate Dart Buddy on Google Play</string>
 
     <string name="onboarding_welcome_title">Welcome to Dart Buddy 1.0</string>
     <string name="onboarding_welcome_body">Your local scorekeeper for X01 and Cricket. Track players and match history—no account needed, and your data stays on this device.</string>
@@ -424,4 +467,9 @@
     <string name="common_confirm">Confirm</string>
     <string name="common_stay">Stay</string>
     <string name="common_back">Back</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_retry">Retry</string>
+    <string name="error_title">Something went wrong</string>
+    <string name="settings_loading">Loading settings…</string>
+    <string name="settings_error_load">Unable to load settings.</string>
 </resources>

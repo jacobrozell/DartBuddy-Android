@@ -36,6 +36,7 @@ import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
 import com.jacobrozell.dartbuddy.ui.layout.scoringPadColumnCount
 import com.jacobrozell.dartbuddy.ui.layout.usesIPadPortraitTwoPlayerScoreRow
 import com.jacobrozell.dartbuddy.ui.layout.usesPinnedActiveX01PlayerCard
+import com.jacobrozell.dartbuddy.ui.layout.usesAccessibilityMatchScoringLayout
 import com.jacobrozell.dartbuddy.ui.layout.usesStackedPlayerScoreCardLayout
 import com.jacobrozell.dartbuddy.ui.layout.usesWidePlayerScoreCardLayout
 import com.jacobrozell.dartbuddy.ui.theme.PlayerColors
@@ -80,6 +81,8 @@ fun X01MatchScreen(
     val layout = rememberLayoutContext(playerCount = cards.size)
     val landscape = layout.isLandscape
     val wideCards = usesWidePlayerScoreCardLayout(layout) && !usesStackedPlayerScoreCardLayout(layout)
+    val stackedCards = usesStackedPlayerScoreCardLayout(layout)
+    val hideInlineStats = usesAccessibilityMatchScoringLayout(layout)
     val padColumns = scoringPadColumnCount(layout)
     val visitDartAlphas = viewModel.visitDartAlphas()
     val checkInBanner = viewModel.checkInBannerText()
@@ -112,6 +115,8 @@ fun X01MatchScreen(
                         visitDarts = state.currentDarts,
                         dartSlotAlphas = visitDartAlphas,
                         useWideLayout = wideCards,
+                        useStackedLayout = stackedCards,
+                        hideInlineStats = hideInlineStats,
                     )
                 }
             },
@@ -126,6 +131,8 @@ fun X01MatchScreen(
                                 visitDarts = if (!pinsActive && card.playerId == activeCard?.playerId) state.currentDarts else emptyList(),
                                 dartSlotAlphas = if (!pinsActive && card.playerId == activeCard?.playerId) visitDartAlphas else emptyList(),
                                 useWideLayout = wideCards,
+                                useStackedLayout = stackedCards,
+                                hideInlineStats = hideInlineStats,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -138,6 +145,8 @@ fun X01MatchScreen(
                             visitDarts = if (!pinsActive && card.playerId == activeCard?.playerId) state.currentDarts else emptyList(),
                             dartSlotAlphas = if (!pinsActive && card.playerId == activeCard?.playerId) visitDartAlphas else emptyList(),
                             useWideLayout = wideCards,
+                            useStackedLayout = stackedCards,
+                            hideInlineStats = hideInlineStats,
                         )
                     }
                 }
@@ -219,6 +228,8 @@ private fun X01PlayerScoreCard(
     visitDarts: List<DartInput>,
     dartSlotAlphas: List<Float> = emptyList(),
     useWideLayout: Boolean = false,
+    useStackedLayout: Boolean = false,
+    hideInlineStats: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     PlayerScoreCard(
@@ -234,5 +245,7 @@ private fun X01PlayerScoreCard(
         average = card.average,
         dartSlotAlphas = dartSlotAlphas,
         useWideLayout = useWideLayout,
+        useStackedLayout = useStackedLayout,
+        hideInlineStats = hideInlineStats,
     )
 }

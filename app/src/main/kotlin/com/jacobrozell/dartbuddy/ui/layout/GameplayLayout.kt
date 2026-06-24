@@ -59,6 +59,8 @@ fun usesAccessibilityMatchScoringLayout(ctx: LayoutContext): Boolean = ctx.isAcc
 
 fun usesAccessibilitySetupHomeLayout(ctx: LayoutContext): Boolean = ctx.isAccessibilityFont
 
+fun usesAccessibilityTabListLayout(ctx: LayoutContext): Boolean = ctx.isAccessibilityFont
+
 fun usesWideSetupHomeLayout(ctx: LayoutContext): Boolean =
     ctx.isTablet && !usesAccessibilitySetupHomeLayout(ctx)
 
@@ -141,10 +143,17 @@ fun usesCricketBoardFillsAvailableHeight(ctx: LayoutContext): Boolean =
         usesSideBySideBottomScoringRegion(ctx)
 
 fun tabScrollBottomPadding(ctx: LayoutContext): Dp =
-    if (usesAccessibilityMatchScoringLayout(ctx)) {
+    if (usesAccessibilityTabListLayout(ctx)) {
         DS.s6 + (88.dp * ctx.fontScale.coerceAtMost(2f))
     } else {
         DS.s6
+    }
+
+fun setupScrollBottomPadding(ctx: LayoutContext): Dp =
+    if (usesAccessibilitySetupHomeLayout(ctx)) {
+        120.dp
+    } else {
+        DS.s4
     }
 
 @Composable

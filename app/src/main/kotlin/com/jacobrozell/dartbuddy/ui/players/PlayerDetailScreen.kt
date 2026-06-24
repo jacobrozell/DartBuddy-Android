@@ -28,6 +28,7 @@ import com.jacobrozell.dartbuddy.domain.bots.BotKind
 import com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator
 import com.jacobrozell.dartbuddy.domain.bots.displayProfile
 import com.jacobrozell.dartbuddy.domain.model.MatchType
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
 import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
@@ -94,7 +95,7 @@ fun PlayerDetailScreen(
                 )
             }
 
-            if (!detail.isBot) {
+            if (!detail.isBot && ProductSurface.showsTrainingBots) {
                 TrainingPartnerSection(
                     trainingBot = uiState.trainingBot,
                     x01Eligibility = uiState.x01Eligibility,
@@ -155,7 +156,7 @@ fun PlayerDetailScreen(
             } else {
                 PlayerDetailActionRow(
                     isArchived = detail.isArchived,
-                    showExport = !detail.isBot,
+                    showExport = !detail.isBot && ProductSurface.showsPlayerExport,
                     isExporting = uiState.isExporting,
                     onEdit = { showEdit = true },
                     onArchiveToggle = {

@@ -1,7 +1,14 @@
 package com.jacobrozell.dartbuddy.ui.settings
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.text.style.TextAlign
+import com.jacobrozell.dartbuddy.BuildConfig
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
+import com.jacobrozell.dartbuddy.ui.designsystem.OptionLabelMaps
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
 import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -23,6 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -44,6 +54,7 @@ import com.jacobrozell.dartbuddy.ui.designsystem.BrandRootScreenTitle
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
 import com.jacobrozell.dartbuddy.ui.designsystem.rememberOptionLabelMaps
+import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
 import com.jacobrozell.dartbuddy.ui.designsystem.TabRootScaffold
 import com.jacobrozell.dartbuddy.ui.play.rules.GameRulesSheet
@@ -51,12 +62,21 @@ import com.jacobrozell.dartbuddy.support.state.AppAppearancePolicy
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 import com.jacobrozell.dartbuddy.ui.theme.DartBuddyTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private data class AppearanceOption(val raw: String, val labelRes: Int)
+
+enum class SettingsLoadState {
+    Loading,
+    Ready,
+    Error,
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -64,8 +84,27 @@ class SettingsViewModel @Inject constructor(
     private val localDataResetService: LocalDataResetService,
     private val onboardingStore: OnboardingStore,
 ) : ViewModel() {
+    private val _loadState = MutableStateFlow(SettingsLoadState.Loading)
+    val loadState: StateFlow<SettingsLoadState> = _loadState.asStateFlow()
+
     val settings = settingsRepository.observe()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+
+    init {
+        refresh()
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _loadState.value = SettingsLoadState.Loading
+            try {
+                settingsRepository.get()
+                _loadState.value = SettingsLoadState.Ready
+            } catch (_: Exception) {
+                _loadState.value = SettingsLoadState.Error
+            }
+        }
+    }
 
     fun update(transform: (AppSettings) -> AppSettings) {
         viewModelScope.launch {
@@ -88,6 +127,7 @@ class SettingsViewModel @Inject constructor(
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val loadState by viewModel.loadState.collectAsStateWithLifecycle()
     var showResetConfirm by remember { mutableStateOf(false) }
     var showReplayConfirm by remember { mutableStateOf(false) }
     var showRulesSheet by remember { mutableStateOf(false) }
@@ -104,7 +144,128 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
     DartBuddyTheme(darkTheme = usesBrandSettingsChrome || isSystemInDarkTheme()) {
     TabRootScaffold(forceBrandDarkBackground = usesBrandSettingsChrome) {
-        Column(Modifier.a11yId(AccessibilityIds.SETTINGS_FORM)) {
+        when (loadState) {
+            SettingsLoadState.Loading -> SettingsLoadingPlaceholder()
+            SettingsLoadState.Error -> SettingsErrorPlaceholder(onRetry = viewModel::refresh)
+            SettingsLoadState.Ready -> SettingsFormContent(
+                settings = settings,
+                labels = labels,
+                appearanceOptions = appearanceOptions,
+                appearanceLabels = appearanceLabels,
+                viewModel = viewModel,
+                onShowRules = { showRulesSheet = true },
+                onShowReplayConfirm = { showReplayConfirm = true },
+                onShowResetConfirm = { showResetConfirm = true },
+                context = context,
+            )
+        }
+    }
+
+    if (showRulesSheet) {
+        GameRulesSheet(initialMode = settings.defaultMatchType, onDismiss = { showRulesSheet = false })
+    }
+
+    if (showReplayConfirm) {
+        AlertDialog(
+            onDismissRequest = { showReplayConfirm = false },
+            title = { Text(stringResource(R.string.settings_replay_onboarding)) },
+            text = { Text(stringResource(R.string.settings_replay_onboarding_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.replayOnboarding()
+                    showReplayConfirm = false
+                }) { Text(stringResource(R.string.common_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReplayConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
+            },
+        )
+    }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text(stringResource(R.string.settings_resetAll)) },
+            text = { Text(stringResource(R.string.settings_resetConfirm)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resetAll { showResetConfirm = false } }) {
+                    Text(stringResource(R.string.common_confirm), color = Brand.Red)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text(stringResource(R.string.common_cancel)) } },
+        )
+    }
+    }
+}
+
+@Composable
+private fun SettingsLoadingPlaceholder() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .a11yId(AccessibilityIds.SETTINGS_LOADING),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = Brand.Green)
+            Text(
+                stringResource(R.string.settings_loading),
+                modifier = Modifier.padding(top = DS.s3),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsErrorPlaceholder(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(DS.s4),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            stringResource(R.string.error_title),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            stringResource(R.string.settings_error_load),
+            modifier = Modifier.padding(top = DS.s2, bottom = DS.s4),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        PrimaryActionButton(
+            title = stringResource(R.string.common_retry),
+            onClick = onRetry,
+            modifier = Modifier.a11yId(AccessibilityIds.SETTINGS_RETRY),
+        )
+    }
+}
+
+@Composable
+private fun SettingsFormContent(
+    settings: AppSettings,
+    labels: OptionLabelMaps,
+    appearanceOptions: List<AppearanceOption>,
+    appearanceLabels: Map<String, String>,
+    viewModel: SettingsViewModel,
+    onShowRules: () -> Unit,
+    onShowReplayConfirm: () -> Unit,
+    onShowResetConfirm: () -> Unit,
+    context: Context,
+) {
+    val rateA11yLabel = stringResource(R.string.settings_support_rate_a11y)
+    val faqA11yLabel = stringResource(R.string.settings_support_faq_a11y)
+    val feedbackA11yLabel = stringResource(R.string.settings_support_feedback_a11y)
+    val privacyA11yLabel = stringResource(R.string.settings_support_privacy_a11y)
+    val accessibilityA11yLabel = stringResource(R.string.settings_support_accessibility_a11y)
+    val resetA11yLabel = stringResource(R.string.settings_reset_accessibility)
+    Column(Modifier.a11yId(AccessibilityIds.SETTINGS_FORM)) {
         BrandRootScreenTitle(title = stringResource(R.string.settings_title))
 
         Text(stringResource(R.string.settings_appearance), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -246,81 +407,70 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
         Text(stringResource(R.string.settings_help), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
-            TextButton(onClick = { showRulesSheet = true }, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = onShowRules, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.settings_help_rules), color = Brand.Green)
             }
             TextButton(
                 onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(com.jacobrozell.dartbuddy.support.AppLinks.SUPPORT))) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = faqA11yLabel },
             ) {
                 Text(stringResource(R.string.onboarding_support_help), color = Brand.Green)
             }
             TextButton(
                 onClick = { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${com.jacobrozell.dartbuddy.support.AppLinks.FEEDBACK_EMAIL}"))) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = feedbackA11yLabel },
             ) {
                 Text(stringResource(R.string.onboarding_support_feedback), color = Brand.Green)
             }
             TextButton(
-                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(com.jacobrozell.dartbuddy.support.AppLinks.ACCESSIBILITY))) },
-                modifier = Modifier.fillMaxWidth(),
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(com.jacobrozell.dartbuddy.support.AppLinks.PLAY_STORE))) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .a11yId(AccessibilityIds.SETTINGS_RATE_APP)
+                    .semantics {
+                        contentDescription = rateA11yLabel
+                    },
             ) {
-                Text(stringResource(R.string.onboarding_support_accessibility), color = Brand.Green)
+                Text(stringResource(R.string.settings_support_rate), color = Brand.Green)
+            }
+            if (ProductSurface.showsAccessibilityMarketing) {
+                TextButton(
+                    onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(com.jacobrozell.dartbuddy.support.AppLinks.ACCESSIBILITY))) },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = accessibilityA11yLabel },
+                ) {
+                    Text(stringResource(R.string.onboarding_support_accessibility), color = Brand.Green)
+                }
             }
             TextButton(
                 onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(com.jacobrozell.dartbuddy.support.AppLinks.PRIVACY))) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = privacyA11yLabel },
             ) {
                 Text(stringResource(R.string.onboarding_support_privacy), color = Brand.Green)
             }
-            TextButton(onClick = { showReplayConfirm = true }, modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.SETTINGS_REPLAY_ONBOARDING)) {
+            TextButton(
+                onClick = onShowReplayConfirm,
+                modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.SETTINGS_REPLAY_ONBOARDING),
+            ) {
                 Text(stringResource(R.string.settings_replay_onboarding), color = Brand.Green)
             }
         }
 
         Text(stringResource(R.string.settings_data), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-        TextButton(onClick = { showResetConfirm = true }, modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.SETTINGS_RESET_ALL)) {
+        TextButton(
+            onClick = onShowResetConfirm,
+            modifier = Modifier
+                .fillMaxWidth()
+                .a11yId(AccessibilityIds.SETTINGS_RESET_ALL)
+                .semantics { contentDescription = resetA11yLabel },
+        ) {
             Text(stringResource(R.string.settings_resetAll), color = Brand.Red)
         }
 
-        Text(stringResource(R.string.settings_version), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-
-    if (showRulesSheet) {
-        GameRulesSheet(initialMode = settings.defaultMatchType, onDismiss = { showRulesSheet = false })
-    }
-
-    if (showReplayConfirm) {
-        AlertDialog(
-            onDismissRequest = { showReplayConfirm = false },
-            title = { Text(stringResource(R.string.settings_replay_onboarding)) },
-            text = { Text(stringResource(R.string.settings_replay_onboarding_confirm)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.replayOnboarding()
-                    showReplayConfirm = false
-                }) { Text(stringResource(R.string.common_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showReplayConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
-            },
+        Text(
+            stringResource(R.string.settings_about_version_format, BuildConfig.VERSION_NAME),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-
-    if (showResetConfirm) {
-        AlertDialog(
-            onDismissRequest = { showResetConfirm = false },
-            title = { Text(stringResource(R.string.settings_resetAll)) },
-            text = { Text(stringResource(R.string.settings_resetConfirm)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.resetAll { showResetConfirm = false } }) {
-                    Text(stringResource(R.string.common_confirm), color = Brand.Red)
-                }
-            },
-            dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text(stringResource(R.string.common_cancel)) } },
-        )
-    }
     }
 }
 

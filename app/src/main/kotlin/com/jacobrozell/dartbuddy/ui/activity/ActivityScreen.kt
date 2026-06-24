@@ -56,6 +56,13 @@ import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.GameModeBadge
 import com.jacobrozell.dartbuddy.support.HistoryListRow
 import com.jacobrozell.dartbuddy.ui.designsystem.BrandSegmented
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.jacobrozell.dartbuddy.support.accessibility.activityFilterModeAccessibilityLabel
+import com.jacobrozell.dartbuddy.support.accessibility.activityFilterPeriodAccessibilityLabel
+import com.jacobrozell.dartbuddy.support.accessibility.activityFilterPlayerAccessibilityLabel
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.TabRootScaffold
 import com.jacobrozell.dartbuddy.ui.theme.Brand
@@ -392,32 +399,42 @@ fun ActivityScreen(
             options = ActivityFilter.entries.map { it to (filterLabels[it] ?: it.name) },
             selected = filter,
             onSelect = { filter = it },
+            segmentAccessibilityLabel = { _, label -> activityFilterModeAccessibilityLabel(label) },
         )
         BrandSegmented(
             options = ActivityPeriod.entries.map { it to (periodLabels[it] ?: it.name) },
             selected = period,
             onSelect = { period = it },
+            segmentAccessibilityLabel = { _, label -> activityFilterPeriodAccessibilityLabel(label) },
         )
         BrandSegmented(
             options = playerOptions.map { it.first to it.second },
             selected = playerFilterId,
             onSelect = { playerFilterId = it },
+            segmentAccessibilityLabel = { _, label -> activityFilterPlayerAccessibilityLabel(label) },
         )
 
         when (segment) {
             0 -> {
                 if (filteredHistory.isEmpty()) {
-                    Text(
-                        if (hasActiveFilters) stringResource(R.string.activity_empty_filtered)
-                        else stringResource(R.string.activity_empty),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    com.jacobrozell.dartbuddy.ui.designsystem.ScoreboardEmptyState(
+                        message = if (hasActiveFilters) {
+                            stringResource(R.string.activity_empty_filtered)
+                        } else {
+                            stringResource(R.string.activity_empty)
+                        },
+                        action = if (!hasActiveFilters && historyRows.isEmpty()) {
+                            {
+                                PrimaryActionButton(
+                                    title = stringResource(R.string.activity_empty_start_match),
+                                    onClick = onStartMatch,
+                                    modifier = Modifier.a11yId(AccessibilityIds.EMPTY_STATE_START_MATCH),
+                                )
+                            }
+                        } else {
+                            null
+                        },
                     )
-                    if (!hasActiveFilters && historyRows.isEmpty()) {
-                        PrimaryActionButton(
-                            title = stringResource(R.string.activity_empty_start_match),
-                            onClick = onStartMatch,
-                        )
-                    }
                 } else {
                     val visible = filteredHistory.take(historyLimit)
                     visible.forEach { row ->
@@ -429,7 +446,13 @@ fun ActivityScreen(
                         )
                     }
                     if (filteredHistory.size > historyLimit) {
-                        TextButton(onClick = { historyLimit += 30 }, modifier = Modifier.fillMaxWidth()) {
+                        val loadMoreA11y = stringResource(R.string.activity_load_more_accessibility)
+                        TextButton(
+                            onClick = { historyLimit += 30 },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .semantics { contentDescription = loadMoreA11y },
+                        ) {
                             Text(stringResource(R.string.activity_load_more), color = Brand.Green)
                         }
                     }
@@ -440,7 +463,20 @@ fun ActivityScreen(
                     PartialMatchBanner()
                 }
                 if (stats.isEmpty()) {
-                    Text(stringResource(R.string.activity_stats_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    com.jacobrozell.dartbuddy.ui.designsystem.ScoreboardEmptyState(
+                        message = stringResource(R.string.activity_stats_empty),
+                        action = if (playerFilterId == null && period == ActivityPeriod.All) {
+                            {
+                                PrimaryActionButton(
+                                    title = stringResource(R.string.activity_empty_start_match),
+                                    onClick = onStartMatch,
+                                    modifier = Modifier.a11yId(AccessibilityIds.EMPTY_STATE_START_MATCH),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                    )
                 } else {
                     StatisticsTablesContent(
                         stats = stats,
@@ -761,8 +797,11 @@ private fun HistoryTimelineSection(timeline: List<String>) {
 private fun PartialMatchBanner() {
     val dark = isSystemInDarkTheme()
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
+    val bannerA11y = stringResource(R.string.stats_partial_match_banner_accessibility)
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = bannerA11y },
         shape = RoundedCornerShape(DS.radiusSm),
         color = cardBg,
         border = BorderStroke(1.dp, Brand.Amber.copy(alpha = 0.5f)),

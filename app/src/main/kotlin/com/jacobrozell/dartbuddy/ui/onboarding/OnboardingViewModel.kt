@@ -9,6 +9,7 @@ import com.jacobrozell.dartbuddy.data.repository.PlayerRepository
 import com.jacobrozell.dartbuddy.data.repository.SettingsRepository
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.model.MatchType
+import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingMode
 import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingRosterDraft
@@ -63,6 +64,7 @@ class OnboardingViewModel @Inject constructor(
                         skipsRosterSetup = true,
                         rosterDraft = OnboardingRosterDraft(
                             name = primary.name,
+                            avatarStyle = PlayerAvatarStyle.resolve(primary.avatarStyleRaw),
                             colorToken = PlayerColorToken.resolve(primary.colorToken),
                             botDifficulty = tier,
                         ),
@@ -162,6 +164,7 @@ class OnboardingViewModel @Inject constructor(
         val human = playerRepository.create(
             name = draft.name,
             colorToken = draft.colorToken.raw,
+            avatarStyleRaw = draft.avatarStyle.raw,
             isPrimary = true,
         )
         val bot = playerRepository.createPresetBot(draft.botDifficulty)

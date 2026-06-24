@@ -1,6 +1,7 @@
 package com.jacobrozell.dartbuddy.ui.components
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jacobrozell.dartbuddy.support.accessibility.a11yId
+import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 enum class ScoringPadKeyStyle {
@@ -40,6 +42,9 @@ fun ScoringPadKey(
     testTag: String? = null,
 ) {
     val dark = isSystemInDarkTheme()
+    val accessibilityFont = rememberLayoutContext().isAccessibilityFont
+    val minKeyHeight = if (accessibilityFont) 48.dp else 44.dp
+    val verticalPadding = if (accessibilityFont) 16.dp else 12.dp
     val keyBg = if (dark) Brand.CardElevatedDark else Brand.CardElevatedLight
     val modifierBg = Brand.Green.copy(alpha = if (selected) 0.35f else 0.15f)
     val actionBg = Brand.Orange.copy(alpha = 0.2f)
@@ -62,6 +67,7 @@ fun ScoringPadKey(
     }
 
     val shape = RoundedCornerShape(10.dp)
+    val sizeMod = Modifier.heightIn(min = minKeyHeight)
     val semanticsMod = Modifier.semantics {
         if (accessibilityLabel != null) contentDescription = accessibilityLabel
     }
@@ -71,9 +77,9 @@ fun ScoringPadKey(
         Button(
             onClick = onClick,
             enabled = enabled,
-            modifier = modifier.then(tagMod).then(semanticsMod),
+            modifier = modifier.then(sizeMod).then(tagMod).then(semanticsMod),
             shape = shape,
-            contentPadding = PaddingValues(vertical = 14.dp),
+            contentPadding = PaddingValues(vertical = verticalPadding),
             colors = ButtonDefaults.buttonColors(
                 containerColor = container,
                 contentColor = contentColor,
@@ -86,9 +92,9 @@ fun ScoringPadKey(
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = modifier.then(tagMod).then(semanticsMod),
+            modifier = modifier.then(sizeMod).then(tagMod).then(semanticsMod),
             shape = shape,
-            contentPadding = PaddingValues(vertical = 12.dp),
+            contentPadding = PaddingValues(vertical = verticalPadding),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = container,
                 contentColor = contentColor,

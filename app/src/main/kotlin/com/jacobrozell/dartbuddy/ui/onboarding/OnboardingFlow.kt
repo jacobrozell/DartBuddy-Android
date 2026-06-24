@@ -5,8 +5,6 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -60,6 +58,7 @@ import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.bots.displayProfile
 import com.jacobrozell.dartbuddy.domain.model.MatchType
+import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.domain.model.X01CheckInMode
 import com.jacobrozell.dartbuddy.domain.model.X01CheckoutMode
@@ -73,7 +72,12 @@ import com.jacobrozell.dartbuddy.domain.onboarding.onboardingOrder
 import com.jacobrozell.dartbuddy.domain.onboarding.onboardingSliderIndex
 import com.jacobrozell.dartbuddy.domain.onboarding.showsOnboardingRulesIntro
 import com.jacobrozell.dartbuddy.support.AppLinks
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.jacobrozell.dartbuddy.support.MotionPreferences
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.layout.formImeInsets
 import com.jacobrozell.dartbuddy.ui.layout.stickyFooterInsets
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
@@ -82,6 +86,7 @@ import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
 import com.jacobrozell.dartbuddy.ui.designsystem.rememberOptionLabelMaps
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
+import com.jacobrozell.dartbuddy.ui.players.AvatarStylePicker
 import com.jacobrozell.dartbuddy.ui.players.BotDifficultyStatsSection
 import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
 import com.jacobrozell.dartbuddy.ui.play.rules.GameRulesGuideContent
@@ -100,15 +105,18 @@ fun OnboardingFlow(
     val background = if (dark) Brand.BackgroundDark else Brand.BackgroundLight
     val context = LocalContext.current
     val reduceMotion = MotionPreferences.prefersReducedMotion(context)
+    var lastStepIndex by remember { mutableStateOf(onboardingStepIndex(state.step)) }
 
     Surface(modifier = Modifier.fillMaxSize(), color = background) {
         AnimatedContent(
             targetState = state.step,
             transitionSpec = {
+                val forward = onboardingStepIndex(targetState) >= lastStepIndex
+                lastStepIndex = onboardingStepIndex(targetState)
                 if (reduceMotion) {
                     EnterTransition.None togetherWith ExitTransition.None
                 } else {
-                    fadeIn() togetherWith fadeOut()
+                    onboardingStepTransition(forward = forward, reduceMotion = false)
                 }
             },
             label = "onboarding_step",
@@ -254,6 +262,7 @@ private fun OnboardingRosterStep(
     onContinue: (OnboardingRosterDraft) -> Unit,
 ) {
     var name by remember { mutableStateOf("") }
+    var avatarStyle by remember { mutableStateOf(PlayerAvatarStyle.Dart) }
     var colorToken by remember { mutableStateOf(PlayerColorToken.Green) }
     var tierIndex by remember { mutableFloatStateOf(BotDifficulty.Easy.onboardingSliderIndex.toFloat()) }
     val selectedDifficulty = BotDifficulty.fromOnboardingSliderIndex(tierIndex.toInt())
@@ -269,6 +278,7 @@ private fun OnboardingRosterStep(
                     onContinue(
                         OnboardingRosterDraft(
                             name = name.trim(),
+                            avatarStyle = avatarStyle,
                             colorToken = colorToken,
                             botDifficulty = selectedDifficulty,
                         ),
@@ -288,7 +298,14 @@ private fun OnboardingRosterStep(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text(stringResource(R.string.onboarding_roster_name)) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.ONBOARDING_PLAYER_NAME),
+            )
+        }
+        SetupSectionCard {
+            AvatarStylePicker(
+                selected = avatarStyle,
+                onSelect = { avatarStyle = it },
+                showsTitle = true,
             )
             HorizontalOptionChips(
                 label = stringResource(R.string.onboarding_roster_color),
@@ -543,27 +560,45 @@ private fun OnboardingSupportStep(progressIndex: Int, onBack: () -> Unit, onCont
             title = stringResource(R.string.onboarding_support_title),
             body = stringResource(R.string.onboarding_support_body),
         )
-        SupportLink(stringResource(R.string.onboarding_support_help)) {
+        SupportLink(
+            title = stringResource(R.string.onboarding_support_help),
+            accessibilityLabel = stringResource(R.string.onboarding_support_help_a11y),
+        ) {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppLinks.SUPPORT)))
         }
-        SupportLink(stringResource(R.string.onboarding_support_feedback)) {
+        SupportLink(
+            title = stringResource(R.string.onboarding_support_feedback),
+            accessibilityLabel = stringResource(R.string.onboarding_support_feedback_a11y),
+        ) {
             context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${AppLinks.FEEDBACK_EMAIL}")))
         }
-        SupportLink(stringResource(R.string.onboarding_support_privacy)) {
+        if (ProductSurface.showsAccessibilityMarketing) {
+            SupportLink(
+                title = stringResource(R.string.onboarding_support_accessibility),
+                accessibilityLabel = stringResource(R.string.onboarding_support_accessibility_a11y),
+            ) {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppLinks.ACCESSIBILITY)))
+            }
+        }
+        SupportLink(
+            title = stringResource(R.string.onboarding_support_privacy),
+            accessibilityLabel = stringResource(R.string.onboarding_support_privacy_a11y),
+        ) {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AppLinks.PRIVACY)))
         }
     }
 }
 
 @Composable
-private fun SupportLink(title: String, onClick: () -> Unit) {
+private fun SupportLink(title: String, accessibilityLabel: String, onClick: () -> Unit) {
     val dark = isSystemInDarkTheme()
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
     TextButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .background(cardBg, androidx.compose.foundation.shape.RoundedCornerShape(DS.radiusMd)),
+            .background(cardBg, androidx.compose.foundation.shape.RoundedCornerShape(DS.radiusMd))
+            .semantics { contentDescription = accessibilityLabel },
     ) {
         Text(title, color = Brand.Green, modifier = Modifier.fillMaxWidth())
     }
@@ -600,7 +635,13 @@ private fun OnboardingReadyStep(
             SetupSectionCard {
                 Text(stringResource(R.string.onboarding_ready_roster_title), fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(DS.s3), verticalAlignment = Alignment.CenterVertically) {
-                    PlayerAvatar(name = draft.name, colorToken = draft.colorToken.raw, playerId = "onboarding", size = 36.dp)
+                    PlayerAvatar(
+                        name = draft.name,
+                        colorToken = draft.colorToken.raw,
+                        playerId = "onboarding",
+                        size = 36.dp,
+                        avatarStyleRaw = draft.avatarStyle.raw,
+                    )
                     Text(draft.name, fontWeight = FontWeight.SemiBold)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(DS.s3), verticalAlignment = Alignment.CenterVertically) {

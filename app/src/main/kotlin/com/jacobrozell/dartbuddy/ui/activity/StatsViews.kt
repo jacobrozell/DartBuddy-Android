@@ -22,6 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.jacobrozell.dartbuddy.support.accessibility.statTableRowAccessibilityLabel
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -91,11 +94,14 @@ private fun CompactStatTable(
         }
         rows.forEachIndexed { index, row ->
             val stripe = if (index % 2 == 1) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f) else null
+            val cells = cellsFor(row)
+            val rowA11y = statTableRowAccessibilityLabel(index, row.name, columns, cells)
             Row(
                 Modifier
                     .fillMaxWidth()
                     .then(if (stripe != null) Modifier.background(stripe) else Modifier)
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 4.dp)
+                    .semantics { contentDescription = rowA11y },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -104,7 +110,7 @@ private fun CompactStatTable(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                cellsFor(row).forEachIndexed { cellIndex, cell ->
+                cells.forEachIndexed { cellIndex, cell ->
                     Text(
                         cell,
                         modifier = Modifier.weight(columns[cellIndex].weight),
@@ -127,17 +133,25 @@ private fun AccessibilityStatTable(
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
     Column(verticalArrangement = Arrangement.spacedBy(DS.s2)) {
         title?.let { Text(it, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall) }
-        rows.forEach { row ->
+        rows.forEachIndexed { rowIndex, row ->
+            val cells = cellsFor(row)
+            val rowA11y = statTableRowAccessibilityLabel(
+                index = rowIndex,
+                playerName = row.name,
+                columns = columns,
+                cells = cells,
+            )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(DS.radiusSm))
                     .background(cardBg)
-                    .padding(DS.s3),
+                    .padding(DS.s3)
+                    .semantics { contentDescription = rowA11y },
                 verticalArrangement = Arrangement.spacedBy(DS.s2),
             ) {
                 Text(row.name, fontWeight = FontWeight.Bold)
-                cellsFor(row).forEachIndexed { index, cell ->
+                cells.forEachIndexed { index, cell ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(columns[index].title, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(cell, fontWeight = FontWeight.SemiBold)

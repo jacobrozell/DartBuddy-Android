@@ -18,6 +18,8 @@ import com.jacobrozell.dartbuddy.domain.service.MatchForfeitResolver
 import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.domain.service.X01Session
 import com.jacobrozell.dartbuddy.domain.service.MatchTurnSupport
+import com.jacobrozell.dartbuddy.domain.service.MatchVisitPreview
+import com.jacobrozell.dartbuddy.domain.service.StatsService
 import com.jacobrozell.dartbuddy.support.logging.AppLogger
 import com.jacobrozell.dartbuddy.support.logging.LogCategory
 import com.jacobrozell.dartbuddy.support.logging.info
@@ -130,8 +132,21 @@ class X01MatchViewModel @Inject constructor(
         val state = _uiState.value
         val session = state.session ?: return emptyList()
         val events = session.events
+        val currentIndex = session.state.currentPlayerIndex
+        val canHumanInput = !state.isBotTurnActive && !isCurrentPlayerBot(state)
         return session.state.players.mapIndexed { index, player ->
-            val stats = statsForPlayer(player.playerId, events)
+            val isActive = index == currentIndex
+            val stats = statsForPlayer(
+                playerId = player.playerId,
+                events = events,
+                isActive = isActive,
+                canHumanInput = canHumanInput,
+                isBotPlaying = state.isBotTurnActive,
+                isCurrentPlayerBot = state.participantIsBot[player.playerId] == true,
+                currentDarts = if (isActive) state.currentDarts else emptyList(),
+                checkInMode = session.config.checkInMode,
+                isCheckedIn = player.isCheckedIn,
+            )
             X01PlayerCard(
                 playerId = player.playerId,
                 name = state.participantNames.getOrElse(index) { "Player ${index + 1}" },
@@ -146,12 +161,40 @@ class X01MatchViewModel @Inject constructor(
         }
     }
 
-    private fun statsForPlayer(playerId: String, events: List<X01TurnEvent>): Pair<Int, Double> {
+    private fun statsForPlayer(
+        playerId: String,
+        events: List<X01TurnEvent>,
+        isActive: Boolean,
+        canHumanInput: Boolean,
+        isBotPlaying: Boolean,
+        isCurrentPlayerBot: Boolean,
+        currentDarts: List<DartInput>,
+        checkInMode: X01CheckInMode,
+        isCheckedIn: Boolean,
+    ): Pair<Int, Double> {
         val playerEvents = events.filter { it.playerId == playerId }
-        val darts = playerEvents.sumOf { it.effectiveDartsThrown }
-        val points = playerEvents.sumOf { it.appliedTotal }
-        val avg = if (darts > 0) (points.toDouble() / darts) * 3 else 0.0
-        return darts to avg
+        val committedDarts = StatsService.x01CommittedDarts(playerEvents)
+        val committedPoints = StatsService.x01CommittedPoints(playerEvents)
+        val includesPreview = MatchVisitPreview.includesActiveVisit(
+            isActive = isActive,
+            canHumanInput = canHumanInput,
+            isBotPlaying = isBotPlaying,
+            isCurrentPlayerBot = isCurrentPlayerBot,
+        )
+        val previewDarts = if (includesPreview) currentDarts.size else 0
+        val previewPoints = if (includesPreview) {
+            X01Engine.scoreVisit(currentDarts, checkInMode, isCheckedIn).appliedTotal
+        } else {
+            0
+        }
+        val darts = committedDarts + previewDarts
+        val average = StatsService.x01LiveScorecardAverage(
+            committedPoints = committedPoints,
+            committedDarts = committedDarts,
+            previewPoints = previewPoints,
+            previewDarts = previewDarts,
+        )
+        return darts to average
     }
 
     fun setMultiplier(multiplier: DartMultiplier) = _uiState.update { it.copy(armedMultiplier = multiplier) }

@@ -18,6 +18,8 @@ import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.ui.components.CricketBoardColumn
 import com.jacobrozell.dartbuddy.ui.theme.PlayerColors
 import com.jacobrozell.dartbuddy.domain.service.MatchTurnSupport
+import com.jacobrozell.dartbuddy.domain.service.MatchVisitPreview
+import com.jacobrozell.dartbuddy.domain.service.StatsService
 import com.jacobrozell.dartbuddy.support.logging.AppLogger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -93,13 +95,37 @@ class CricketMatchViewModel @Inject constructor(
     fun boardColumns(): List<CricketBoardColumn> {
         val state = _uiState.value
         val session = state.session ?: return emptyList()
+        val canHumanInput = !state.isBotTurnActive && !isCurrentPlayerBot(state)
         return session.state.players.mapIndexed { index, player ->
+            val isActive = index == session.state.currentPlayerIndex
+            val events = session.events.filter { it.playerId == player.playerId }
+            val includesPreview = MatchVisitPreview.includesActiveVisit(
+                isActive = isActive,
+                canHumanInput = canHumanInput,
+                isBotPlaying = state.isBotTurnActive,
+                isCurrentPlayerBot = state.participantIsBot[player.playerId] == true,
+            )
+            val previewDarts = if (includesPreview) state.currentDarts else emptyList()
+            val includesPreviewRound = includesPreview && previewDarts.isNotEmpty()
+            val previewMarks = if (includesPreview) {
+                StatsService.cricketPreviewMarks(previewDarts, player.marks)
+            } else {
+                0
+            }
             CricketBoardColumn(
                 name = state.participantNames.getOrElse(index) { "Player ${index + 1}" },
                 score = player.score,
                 marks = player.marks,
-                isActive = index == session.state.currentPlayerIndex,
+                isActive = isActive,
                 accentColor = PlayerColors.accent(index),
+                dartsThrown = StatsService.cricketDartsThrown(events) + previewDarts.size,
+                marksPerRound = StatsService.cricketMarksPerRound(
+                    events = events,
+                    previewMarks = previewMarks,
+                    includesPreviewRound = includesPreviewRound,
+                ),
+                setsEnabled = session.config.setsEnabled,
+                setsWon = player.setsWon,
             )
         }
     }

@@ -1,6 +1,7 @@
 package com.jacobrozell.dartbuddy.domain.onboarding
 
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
+import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 
 enum class OnboardingMode {
@@ -44,6 +45,7 @@ enum class OnboardingStep {
 
 data class OnboardingRosterDraft(
     val name: String,
+    val avatarStyle: PlayerAvatarStyle = PlayerAvatarStyle.Dart,
     val colorToken: PlayerColorToken,
     val botDifficulty: BotDifficulty,
 )

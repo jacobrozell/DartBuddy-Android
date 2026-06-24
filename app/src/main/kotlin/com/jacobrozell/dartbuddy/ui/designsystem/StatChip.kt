@@ -7,12 +7,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 @Composable
@@ -23,10 +25,11 @@ fun StatChip(
     compact: Boolean = false,
 ) {
     val secondary = if (isSystemInDarkTheme()) Brand.TextSecondaryDark else Brand.TextSecondaryLight
+    val tileA11y = stringResource(R.string.stats_stat_tile_accessibility_format, label, value)
     Column(
         modifier = modifier
             .semantics {
-                contentDescription = "$label, $value"
+                contentDescription = tileA11y
             },
     ) {
         Text(

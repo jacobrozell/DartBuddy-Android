@@ -41,16 +41,17 @@ From `ProductSurface.lean1_0` on `master`:
 | 4-tab shell + brand tokens | ✅ |
 | X01 + Cricket setup & match core | ✅ / ✅ (adaptive layouts) |
 | Rules / learn to play | ✅ |
-| Players list + detail / edit / delete | ✅ / ✅ (trend, training bot, export) |
+| Players list + detail / edit / delete | ✅ / ✅ (trend; training + export gated like iOS lean) |
 | Activity history + Statistics segment | ✅ |
 | Settings defaults + appearance + bots + help | ✅ |
 | Onboarding | ✅ 7-step flow |
 | **Bots (preset + gameplay)** | ✅ |
 | **Custom bots** | ✅ simple + advanced editor |
 | Firebase / bundled sounds / TTS caller | ✅ sounds + TTS + Firebase (release) |
-| Visual polish (motion, trophy, splash) | 🟡 key motions ✅; full splash art 🟡 |
+| Visual polish (motion, trophy, splash) | ✅ |
+| **ProductSurface gates** (lean 1.0 release) | ✅ `ProductSurface.kt` |
 
-**~96% lean 1.0 intent** — see [`STATUS.md`](STATUS.md) for completion table and remaining work.
+**~98% lean 1.0 intent** — see [`STATUS.md`](STATUS.md) for completion table and remaining work.
 
 ---
 
@@ -62,13 +63,13 @@ From `ProductSurface.lean1_0` on `master`:
 | No Modes tab | ✅ | ✅ |
 | Green selected tab state + filled icons when selected | ✅ | ✅ outlined/filled + green indicator |
 | Match routes hide tab bar | ✅ | ✅ |
-| Brand background on tab roots | ✅ | 🟡 solid color only |
+| Brand background on tab roots | ✅ | ✅ |
 | Tab scroll bottom padding (AX Dynamic Type) | ✅ | ✅ extra scroll padding on tab roots |
 | Play tab badge when active match | ✅ | `ShellViewModel` + `BadgedBox` |
 | App Store update prompt | ✅ | ✅ Play Store lookup + dismiss persistence |
 | Deep links (`dartbuddy://v1/...`) | ✅ | ✅ manifest + tab routes |
 | Deep link deferral until onboarding done | ✅ | ✅ |
-| Launch splash (dartboard backdrop + wordmark) | ✅ | 🟡 branded drawable + launcher foreground |
+| Launch splash (dartboard backdrop + wordmark) | ✅ | ✅ iOS PNG + Compose overlay |
 | Tab / screen reveal motion | ✅ | ✅ tab content fade-in |
 | iPad main shell adaptations | ✅ | ✅ `LayoutContext` + readable 920dp column |
 
@@ -81,13 +82,13 @@ iOS: **Welcome → Roster setup → Preferences → Learn to play (conditional) 
 | Feature | iOS | Android |
 |---------|-----|---------|
 | Welcome + skip to finish | ✅ | ✅ |
-| Roster setup (name, avatar, color, experience tier) | ✅ | ✅ (name, color, experience slider) |
+| Roster setup (name, avatar, color, experience tier) | ✅ | ✅ |
 | Seed human + preset bot for first match | ✅ | ✅ tier from slider |
 | Replay onboarding from Settings | ✅ | ✅ |
 | Preferences step (default game settings) | ✅ | ✅ |
 | Learn to play with mode picker | ✅ conditional | ✅ conditional |
 | App tour cards (Play / Players / Activity / Settings) | ✅ | ✅ |
-| Support step (FAQ, feedback, a11y, privacy links) | ✅ | ✅ |
+| Support step (FAQ, feedback, a11y, privacy links) | ✅ | ✅ a11y link gated like iOS |
 | Ready step + roster summary | ✅ | ✅ |
 | Progress chrome + back navigation | ✅ | ✅ |
 | Skip roster if primary player exists (replay) | ✅ | ✅ |
@@ -158,7 +159,7 @@ Android today: **7-step full-screen flow** — Welcome → Roster → Preference
 | **Leg-win banner** + VoiceOver announce | ✅ | ✅ animated banner + leg sound |
 | Check-in / state banner | ✅ | ✅ mode banner + dimmed non-scoring darts |
 | **Bot turn banner** | ✅ | ✅ |
-| Player score cards (accent, visit, 3DA, sets/legs) | ✅ | ✅ |
+| Player score cards (accent, visit, 3DA, sets/legs) | ✅ | ✅ (live 3DA during visit) |
 | Match header (title, config summary, exit, undo) | ✅ | ✅ |
 | Exit sheet (save / forfeit / abandon) | ✅ | ✅ |
 | Forfeit flow | ✅ multi-step sheets | ✅ pick player / winner / confirm sheets |
@@ -176,7 +177,7 @@ Android today: **7-step full-screen flow** — Welcome → Roster → Preference
 |---------|-----|---------|
 | Tap pad (segments + multipliers) | ✅ | ✅ |
 | Manual submit turn | ✅ | ✅ |
-| Column marks board | ✅ | ✅ |
+| Column marks board | ✅ | ✅ (darts + MPR footer) |
 | Landscape side-by-side layout | ✅ | ✅ |
 | Landscape transposed board (stacked shell) | ✅ | ✅ phone landscape |
 | iPad landscape board fill-height variant | ✅ | ⬜ iOS also disabled (`usesSideBySideBottomScoringRegion` false) |
@@ -208,19 +209,21 @@ Android today: **7-step full-screen flow** — Welcome → Roster → Preference
 | Feature | iOS | Android |
 |---------|-----|---------|
 | Player list with avatars | ✅ SF Symbol styles | ✅ icon styles + color |
-| Search / filter | ✅ | ✅ |
+| Search / filter | ✅ | ✅ search field + empty states |
+| Players / Bots sections | ✅ | ✅ split sections like iOS |
+| Empty roster state | ✅ | ✅ icon + title + description |
 | Add player form | ✅ name, avatar, color, primary | ✅ name, avatar, color (primary on edit) |
 | **Player detail** (stats, recent matches) | ✅ navigation | ✅ stats-first + trend chart + recent matches → history |
 | Edit player sheet | ✅ | ✅ name, notes, color, avatar, primary |
 | Archive (swipe + detail) | ✅ | ✅ swipe + archive button |
 | Unarchive | ✅ | ✅ archived section |
 | Delete player (with guards) | ✅ | ✅ AlertDialog |
-| **Training Partner** bot | 🚫 lean gate | ✅ create + practice prefill |
+| **Training Partner** bot | 🚫 lean gate | ✅ gated off in release (`ProductSurface.lean1_0`) |
 | **Custom bot** create / detail / metrics edit | ✅ lean 1.0 | ✅ simple + advanced editor |
 | Bot badges in list | ✅ | ✅ |
 | Primary player flag | ✅ | ✅ detail + edit |
 | Player notes field | ✅ | ✅ on detail |
-| Player export (DBPE) | 🚫 lean gate | ✅ JSON share via FileProvider |
+| Player export (DBPE) | 🚫 lean gate | ✅ gated off in release (`ProductSurface.lean1_0`) |
 
 ---
 
@@ -235,7 +238,7 @@ Android today: **7-step full-screen flow** — Welcome → Roster → Preference
 | Resume active match banner | ✅ | ✅ Play + Activity |
 | Rich history row cards | ✅ | ✅ `MatchHistoryCard` (badge, config, standings) |
 | Load-more pagination | ✅ | ✅ 30 per page |
-| Filtered empty states + Start Match CTA | ✅ | ✅ |
+| Filtered empty states + Start Match CTA | ✅ | ✅ history + statistics segments |
 | **Statistics tables + charts** | ✅ | ✅ tables + bar charts |
 | Partial active match in stats | ✅ | ✅ banner |
 | History detail: Game Statistics title | ✅ | ✅ |
@@ -265,10 +268,10 @@ iOS sections: Appearance · Starting mode · Match defaults · X01 defaults · D
 | Bot stagger + bot dart haptics | ✅ | ✅ |
 | Reset all local data | ✅ | ✅ |
 | Reset → replay onboarding | ✅ | ✅ via Settings “View onboarding again” |
-| Help & feedback (FAQ, email, rate, a11y page, privacy) | ✅ | ✅ (no App Store rate link) |
+| Help & feedback (FAQ, email, rate, a11y page, privacy) | ✅ | ✅ Play Store rate + gated a11y link |
 | View onboarding again | ✅ | ✅ |
-| About / version | ✅ | ✅ |
-| Loading / error retry placeholder | ✅ | 🟡 history detail only |
+| About / version | ✅ | ✅ `BuildConfig.VERSION_NAME` |
+| Loading / error retry placeholder | ✅ | ✅ settings loading + retry |
 
 ---
 
@@ -289,8 +292,8 @@ iOS sections: Appearance · Starting mode · Match defaults · X01 defaults · D
 | Feature | iOS | Android |
 |---------|-----|---------|
 | English-only bundled UI | ✅ | ✅ |
-| Localized chip / enum labels | ✅ | 🟡 many hardcoded strings in Kotlin |
-| Formatted accessibility strings | ✅ | 🟡 partial in `strings.xml` |
+| Localized chip / enum labels | ✅ | ✅ |
+| Formatted accessibility strings | ✅ | ✅ history rows, stats tiles, setup chips, filters, resume |
 | de / es / nl in repo | 🚫 not in lean bundle | 🚫 |
 
 ---
@@ -316,7 +319,7 @@ iOS sections: Appearance · Starting mode · Match defaults · X01 defaults · D
 | Checkout suggestion a11y | ✅ | ✅ |
 | Turn total caller | ✅ | ✅ |
 | Accessibility marketing link | ✅ | ✅ |
-| Dedicated AX layouts (setup, match, tabs) | ✅ | 🟡 match scroll + 4-col pad + tab bottom padding |
+| Dedicated AX layouts (setup, match, tabs) | ✅ | ✅ scroll match, 4-col pad, stacked cards, tab/setup padding |
 | Reduce motion (splash, onboarding, summary) | ✅ | ✅ onboarding, summary trophy, resume banner |
 | UI test accessibility identifiers | ✅ extensive | ✅ incl. scoring pad keys |
 
@@ -326,9 +329,9 @@ iOS sections: Appearance · Starting mode · Match defaults · X01 defaults · D
 
 | Feature | iOS | Android |
 |---------|-----|---------|
-| Launch splash (dartboard image asset) | ✅ | 🟡 vector dartboard + wordmark |
+| Launch splash (dartboard image asset) | ✅ | ✅ iOS `LaunchSplashBackdrop` PNG |
 | Resume banner motion | ✅ | ✅ |
-| Onboarding step transitions | ✅ | 🟡 fade only |
+| Onboarding step transitions / reduce motion | ✅ | ✅ slide + fade (170ms) |
 | Leg-win banner animation | ✅ | ✅ |
 | Match summary trophy spring | ✅ | ✅ |
 | Error banner styling (hint vs destructive) | ✅ | ✅ `HintBanner` + `ErrorBanner` |
@@ -347,7 +350,7 @@ iOS sections: Appearance · Starting mode · Match defaults · X01 defaults · D
 | Rematch store | ✅ | ✅ |
 | Local data reset inventory | ✅ | ✅ Room + onboarding + rematch + practice + Play Store dismiss |
 | Bot engine + skill profiles | ✅ | ✅ incl. custom interpolator |
-| Stats repository / reducers for detail | ✅ | ⬜ minimal calculator only |
+| Stats repository / reducers for detail | ✅ | ✅ `MatchStatsCalculator` + `StatsService` live scorecard |
 
 ---
 
@@ -356,8 +359,6 @@ iOS sections: Appearance · Starting mode · Match defaults · X01 defaults · D
 See [`STATUS.md`](STATUS.md) for the full prioritized list. Summary:
 
 1. **Play Store** — release signing, listing, tracks (P0).
-2. **Launch splash** — import iOS dartboard PNG export (P2).
-3. **Accessibility** — more setup AX polish (P3).
 
 ### Completed major milestones
 

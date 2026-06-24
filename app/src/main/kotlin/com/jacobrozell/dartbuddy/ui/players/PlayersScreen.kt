@@ -40,10 +40,18 @@ import com.jacobrozell.dartbuddy.data.repository.PlayerSummary
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator
 import com.jacobrozell.dartbuddy.domain.bots.CustomBotMetrics
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
 import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.People
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
+import com.jacobrozell.dartbuddy.support.accessibility.a11yId
+import com.jacobrozell.dartbuddy.ui.designsystem.ScoreboardEmptyState
 import com.jacobrozell.dartbuddy.ui.designsystem.BrandRootScreenTitle
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
@@ -64,8 +72,11 @@ class PlayersViewModel @Inject constructor(
 ) : ViewModel() {
     private val query = kotlinx.coroutines.flow.MutableStateFlow("")
 
+    val allPlayers = playerRepository.observeAllPlayers()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val players = combine(
-        playerRepository.observeAllPlayers(),
+        allPlayers,
         query,
     ) { list, q ->
         val needle = q.trim().lowercase()
@@ -103,6 +114,7 @@ fun PlayersScreen(
     viewModel: PlayersViewModel = hiltViewModel(),
 ) {
     val players by viewModel.players.collectAsStateWithLifecycle()
+    val allPlayers by viewModel.allPlayers.collectAsStateWithLifecycle()
     var newName by rememberSaveable { mutableStateOf("") }
     var newAvatar by rememberSaveable { mutableStateOf(PlayerAvatarStyle.Dart.raw) }
     var newColor by rememberSaveable { mutableStateOf(PlayerColorToken.Green.raw) }
@@ -111,6 +123,12 @@ fun PlayersScreen(
     var search by rememberSaveable { mutableStateOf("") }
     val active = players.filter { !it.isArchived }
     val archived = players.filter { it.isArchived }
+
+    val searchA11y = stringResource(R.string.players_search_accessibility)
+    val activeHumans = active.filter { !it.isBot }.sortedBy { it.name.lowercase() }
+    val activeBots = active.filter { it.isBot }.sortedBy { it.name.lowercase() }
+    val isDatabaseEmpty = allPlayers.isEmpty()
+    val isSearchNoResults = !isDatabaseEmpty && players.isEmpty() && search.isNotBlank()
 
     TabRootScaffold {
         BrandRootScreenTitle(title = stringResource(R.string.players_title))
@@ -121,9 +139,31 @@ fun PlayersScreen(
                 search = it
                 viewModel.setQuery(it)
             },
-            label = { Text(stringResource(R.string.players_search)) },
-            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.players_search_placeholder)) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .a11yId(AccessibilityIds.PLAYERS_SEARCH)
+                .semantics { contentDescription = searchA11y },
         )
+
+        when {
+            isDatabaseEmpty -> {
+                ScoreboardEmptyState(
+                    title = stringResource(R.string.players_empty_title),
+                    message = stringResource(R.string.players_empty_description),
+                    icon = Icons.Default.People,
+                    modifier = Modifier.a11yId(AccessibilityIds.PLAYERS_EMPTY),
+                )
+            }
+            isSearchNoResults -> {
+                ScoreboardEmptyState(
+                    title = stringResource(R.string.players_empty_title),
+                    message = stringResource(R.string.players_search_no_results),
+                    icon = Icons.Default.People,
+                    modifier = Modifier.a11yId(AccessibilityIds.PLAYERS_SEARCH_EMPTY),
+                )
+            }
+        }
 
         SetupSectionCard {
             PlayerCreateFields(
@@ -151,9 +191,20 @@ fun PlayersScreen(
             }
         }
 
-        if (active.isNotEmpty()) {
-            Text(stringResource(R.string.players_active_section), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            active.forEach { player ->
+        if (activeHumans.isNotEmpty()) {
+            Text(stringResource(R.string.players_section_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            activeHumans.forEach { player ->
+                SwipeablePlayerRow(
+                    player = player,
+                    onOpen = { onOpenPlayer(player.id) },
+                    onArchive = { viewModel.archivePlayer(player.id) },
+                )
+            }
+        }
+
+        if (activeBots.isNotEmpty()) {
+            Text(stringResource(R.string.players_bots_section_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            activeBots.forEach { player ->
                 SwipeablePlayerRow(
                     player = player,
                     onOpen = { onOpenPlayer(player.id) },
@@ -182,8 +233,10 @@ fun PlayersScreen(
                             showAddBot = false
                         }) { Text(difficulty.displayNameComposable()) }
                     }
-                    TextButton(onClick = { showAddBot = false; showCustomBot = true }) {
-                        Text(stringResource(R.string.custom_bot_add_menu), color = Brand.ProBot)
+                    if (ProductSurface.showsCustomBots) {
+                        TextButton(onClick = { showAddBot = false; showCustomBot = true }) {
+                            Text(stringResource(R.string.custom_bot_add_menu), color = Brand.ProBot)
+                        }
                     }
                 }
             },
@@ -252,12 +305,14 @@ private fun PlayerRow(
 ) {
     val dark = isSystemInDarkTheme()
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
+    val rowA11y = playerRowAccessibilityLabel(player, archived)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(DS.radiusSm))
             .background(cardBg)
             .clickable(onClick = onOpen)
+            .semantics { contentDescription = rowA11y }
             .padding(DS.s3),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DS.s3),
@@ -295,4 +350,33 @@ private fun PlayerRow(
             TextButton(onClick = onArchive) { Text(stringResource(R.string.players_archive), color = Brand.Red) }
         }
     }
+}
+
+@Composable
+private fun playerRowAccessibilityLabel(player: PlayerSummary, archived: Boolean): String {
+    val suffix = buildString {
+        if (player.isBot) {
+            val difficulty = BotTurnCoordinator.difficultyFor(player)
+            if (player.botKindRaw == "custom") {
+                BotTurnCoordinator.customMetricsFor(player)?.let { metrics ->
+                    append(
+                        stringResource(
+                            R.string.custom_bot_row_accessibility_suffix,
+                            metrics.x01Average,
+                            metrics.cricketMPR,
+                        ),
+                    )
+                } ?: append(stringResource(R.string.players_row_bot_suffix, stringResource(R.string.players_bot_label)))
+            } else if (difficulty != null) {
+                append(stringResource(R.string.players_row_bot_suffix, difficulty.displayNameComposable()))
+            }
+        }
+        if (player.isPrimary) {
+            append(stringResource(R.string.players_row_primary_suffix))
+        }
+        if (archived || player.isArchived) {
+            append(stringResource(R.string.players_row_archived_suffix))
+        }
+    }
+    return stringResource(R.string.players_row_accessibility_format, player.name, suffix)
 }

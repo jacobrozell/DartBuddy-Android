@@ -38,7 +38,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jacobrozell.dartbuddy.R
+import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.support.MotionPreferences
+import com.jacobrozell.dartbuddy.support.accessibility.resumeMatchAccessibilityLabel
 import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
 import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
@@ -51,6 +53,12 @@ fun ResumeBanner(
     modifier: Modifier = Modifier,
 ) {
     val resumeLabel = stringResource(R.string.play_home_resumeButton)
+    val modeName = when (matchType) {
+        MatchType.X01.name -> stringResource(R.string.play_x01_title)
+        MatchType.Cricket.name -> stringResource(R.string.play_cricket_title)
+        else -> matchType
+    }
+    val resumeA11y = resumeMatchAccessibilityLabel(resumeLabel, modeName)
     val context = LocalContext.current
     val reduceMotion = MotionPreferences.prefersReducedMotion(context)
     var visible by remember { mutableStateOf(reduceMotion) }
@@ -81,7 +89,7 @@ fun ResumeBanner(
             .clickable(onClick = onClick)
             .a11yId(AccessibilityIds.PLAY_HOME_RESUME)
             .padding(DS.s4)
-            .semantics { contentDescription = resumeLabel },
+            .semantics { contentDescription = resumeA11y },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DS.s3),
     ) {

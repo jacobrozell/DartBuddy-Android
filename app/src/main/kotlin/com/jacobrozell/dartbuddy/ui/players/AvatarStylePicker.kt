@@ -3,7 +3,6 @@ package com.jacobrozell.dartbuddy.ui.players
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,13 +33,16 @@ fun AvatarStylePicker(
     selected: PlayerAvatarStyle,
     onSelect: (PlayerAvatarStyle) -> Unit,
     modifier: Modifier = Modifier,
+    showsTitle: Boolean = true,
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(DS.s2)) {
-        Text(
-            stringResource(com.jacobrozell.dartbuddy.R.string.players_edit_avatar),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (showsTitle) {
+            Text(
+                stringResource(com.jacobrozell.dartbuddy.R.string.players_edit_avatar),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(DS.s2),
             verticalArrangement = Arrangement.spacedBy(DS.s2),
@@ -54,7 +54,7 @@ fun AvatarStylePicker(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) Brand.Green else MaterialTheme.colorScheme.surfaceVariant)
+                        .background(if (isSelected) Brand.Green.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant)
                         .border(
                             width = if (isSelected) 2.dp else 0.dp,
                             color = if (isSelected) Brand.Green else Color.Transparent,
@@ -64,11 +64,12 @@ fun AvatarStylePicker(
                         .semantics { contentDescription = label },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        style.icon,
-                        contentDescription = null,
-                        tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(22.dp),
+                    com.jacobrozell.dartbuddy.ui.components.PlayerAvatar(
+                        name = label,
+                        colorToken = com.jacobrozell.dartbuddy.domain.model.PlayerColorToken.Green.raw,
+                        playerId = style.raw,
+                        size = 32.dp,
+                        avatarStyleRaw = style.raw,
                     )
                 }
             }

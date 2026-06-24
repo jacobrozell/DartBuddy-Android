@@ -59,6 +59,7 @@ import com.jacobrozell.dartbuddy.data.repository.PlayerSummary
 import com.jacobrozell.dartbuddy.domain.model.CricketScoringMode
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.model.MatchType
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
 import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.domain.model.X01CheckInMode
@@ -86,6 +87,9 @@ import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
 import com.jacobrozell.dartbuddy.ui.play.rules.LearnToPlayButton
 import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
 import com.jacobrozell.dartbuddy.support.accessibility.a11yId
+import com.jacobrozell.dartbuddy.support.accessibility.selectedModeAccessibilityLabel
+import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
+import com.jacobrozell.dartbuddy.ui.layout.usesAccessibilitySetupHomeLayout
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,12 +131,20 @@ fun PlayScreen(
     var newPlayerAvatar by remember { mutableStateOf(PlayerAvatarStyle.Dart) }
     var newPlayerColor by remember { mutableStateOf(PlayerColorToken.Green) }
 
-    val validationMessages = state.validationErrors.mapNotNull { key ->
-        when (key) {
-            // Shown inline in RosterSection — iOS filters minimum-players from footer when roster is empty.
-            "empty_roster" -> null
-            "cricket_min" -> stringResource(R.string.play_setup_cricketMinPlayers)
-            else -> null
+    val layout = rememberLayoutContext()
+    val usesAxSetup = usesAccessibilitySetupHomeLayout(layout)
+    val displayValidationErrors = state.validationErrors.filter { key ->
+        !(key == "empty_roster" && state.selectedPlayers.isEmpty())
+    }
+    val validationMessages = if (usesAxSetup) {
+        emptyList()
+    } else {
+        displayValidationErrors.mapNotNull { key ->
+            when (key) {
+                "empty_roster" -> null
+                "cricket_min" -> stringResource(R.string.play_setup_cricketMinPlayers)
+                else -> null
+            }
         }
     }
     val configSummary = viewModel.setupConfigSummary()
@@ -172,6 +184,9 @@ fun PlayScreen(
                                 configSummary = configSummary,
                             )
                             if (showsEditOptions) ModeOptionsSection(state, viewModel)
+                            if (usesAxSetup) {
+                                SetupValidationSection(displayValidationErrors)
+                            }
                         }
                         Column(Modifier.weight(1f)) {
                             RosterSection(state, viewModel, onAddPlayer = { showAddPlayer = true }, onAddBot = { showAddBot = true })
@@ -189,6 +204,9 @@ fun PlayScreen(
                             configSummary = configSummary,
                         )
                         if (showsEditOptions) ModeOptionsSection(state, viewModel)
+                        if (usesAxSetup) {
+                            SetupValidationSection(displayValidationErrors)
+                        }
                         RosterSection(state, viewModel, onAddPlayer = { showAddPlayer = true }, onAddBot = { showAddBot = true })
                     }
                 },
@@ -253,8 +271,10 @@ fun PlayScreen(
                         Text(difficulty.displayNameComposable(), color = Brand.Green, fontWeight = FontWeight.SemiBold)
                     }
                 }
-                TextButton(onClick = { showAddBot = false; showCustomBot = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.custom_bot_add_menu), color = Brand.ProBot, fontWeight = FontWeight.SemiBold)
+                if (ProductSurface.showsCustomBots) {
+                    TextButton(onClick = { showAddBot = false; showCustomBot = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.custom_bot_add_menu), color = Brand.ProBot, fontWeight = FontWeight.SemiBold)
+                    }
                 }
                 Spacer(Modifier.height(DS.s4))
             }
@@ -277,6 +297,18 @@ fun PlayScreen(
 }
 
 @Composable
+private fun SetupValidationSection(errors: List<String>) {
+    if (errors.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(DS.s2)) {
+        errors.forEach { key ->
+            when (key) {
+                "cricket_min" -> ErrorBanner(stringResource(R.string.play_setup_cricketMinPlayers))
+            }
+        }
+    }
+}
+
+@Composable
 private fun ModeSection(
     state: PlayUiState,
     showsEditOptions: Boolean,
@@ -286,6 +318,7 @@ private fun ModeSection(
     configSummary: String,
 ) {
     val modeName = if (state.setupMode == MatchType.X01) stringResource(R.string.play_x01_title) else stringResource(R.string.play_cricket_title)
+    val modeA11y = selectedModeAccessibilityLabel(modeName, configSummary)
 
     Column(verticalArrangement = Arrangement.spacedBy(DS.s2)) {
         Row(
@@ -300,7 +333,9 @@ private fun ModeSection(
             )
             LearnToPlayButton(onClick = onLearnToPlay, compact = true, testTag = AccessibilityIds.SETUP_LEARN_TO_PLAY)
         }
-        SetupSectionCard {
+        SetupSectionCard(
+            modifier = Modifier.semantics { contentDescription = modeA11y },
+        ) {
             Row(verticalAlignment = Alignment.Top) {
                 GameModeBadge(state.setupMode.name)
                 Column(Modifier.weight(1f).padding(start = DS.s3)) {
@@ -471,8 +506,16 @@ private fun TurnOrderRow(
                 color = Brand.ProBot,
             )
         }
-        if (canMoveUp) IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up") }
-        if (canMoveDown) IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down") }
+        if (canMoveUp) {
+            IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.play_setup_move_up))
+            }
+        }
+        if (canMoveDown) {
+            IconButton(onClick = onMoveDown, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.play_setup_move_down))
+            }
+        }
         TurnOrderDragHandle(
             enabled = reorderEnabled,
             onDragUp = onMoveUp,

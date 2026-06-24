@@ -2,6 +2,8 @@ package com.jacobrozell.dartbuddy.domain.model
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
@@ -39,8 +41,8 @@ enum class PlayerAvatarStyle(val raw: String) {
 
     val icon: ImageVector
         get() = when (this) {
-            Dart -> Icons.Default.Bolt
-            Target -> Icons.Default.Shield
+            Dart -> Icons.Default.NearMe
+            Target -> Icons.Default.GpsFixed
             Trophy -> Icons.Default.EmojiEvents
             Flame -> Icons.Default.Whatshot
             Star -> Icons.Default.Star

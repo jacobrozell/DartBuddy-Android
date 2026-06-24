@@ -36,7 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.jacobrozell.dartbuddy.support.accessibility.a11yId
+import com.jacobrozell.dartbuddy.support.accessibility.setupChipAccessibilityLabel
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
 import com.jacobrozell.dartbuddy.ui.layout.usesAccessibilitySetupHomeLayout
@@ -104,6 +106,7 @@ fun <T> SetupOptionChip(
     var expanded by remember { mutableStateOf(false) }
     val minHeight = if (rememberLayoutContext().isAccessibilityFont) 56.dp else 52.dp
     val boxColor = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.35f)
+    val chipA11y = setupChipAccessibilityLabel(title, value)
 
     Column(
         modifier = modifier
@@ -128,7 +131,7 @@ fun <T> SetupOptionChip(
                     .background(boxColor)
                     .clickable(enabled = enabled) { expanded = true }
                     .semantics {
-                        contentDescription = "$title, $value"
+                        contentDescription = chipA11y
                     }
                     .padding(horizontal = 8.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,

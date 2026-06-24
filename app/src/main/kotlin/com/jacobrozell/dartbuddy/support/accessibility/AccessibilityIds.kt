@@ -6,6 +6,14 @@ object AccessibilityIds {
     const val TAB_ACTIVITY = "tab_activity"
     const val TAB_SETTINGS = "tab_settings"
 
+    const val LAUNCH_SPLASH = "launch_splash"
+
+    const val ONBOARDING_PLAYER_NAME = "onboarding_player_name"
+    const val PLAYERS_SEARCH = "players_searchField"
+    const val PLAYERS_EMPTY = "players_empty"
+    const val PLAYERS_SEARCH_EMPTY = "players_search_empty"
+    const val EMPTY_STATE_START_MATCH = "emptyStateStartMatchButton"
+
     const val START_MATCH_BUTTON = "startMatchButton"
     const val PLAY_HOME_RESUME = "play_home_resumeButton"
     const val SETUP_ADD_PLAYER = "setup_footer_addPlayer"
@@ -32,6 +40,8 @@ object AccessibilityIds {
     const val MATCH_SUMMARY_UNDO_LAST_THROW = "matchSummaryUndoLastThrow"
 
     const val SETTINGS_FORM = "settings_form"
+    const val SETTINGS_LOADING = "settings_loading"
+    const val SETTINGS_RETRY = "settings_retryButton"
     const val SETTINGS_HAPTICS = "settings_hapticsToggle"
     const val SETTINGS_SOUND = "settings_soundToggle"
     const val SETTINGS_TURN_CALLER = "settings_turnTotalCallerToggle"
@@ -39,6 +49,7 @@ object AccessibilityIds {
     const val SETTINGS_BOT_HAPTICS = "settings_botDartHapticsToggle"
     const val SETTINGS_RESET_ALL = "settings_resetAllDataButton"
     const val SETTINGS_REPLAY_ONBOARDING = "settings_viewOnboardingButton"
+    const val SETTINGS_RATE_APP = "settings_rateAppLink"
 
     const val PAD_DOUBLE = "pad_double"
     const val PAD_TRIPLE = "pad_triple"

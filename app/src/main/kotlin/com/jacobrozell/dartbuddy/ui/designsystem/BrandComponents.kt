@@ -49,9 +49,10 @@ import androidx.compose.ui.unit.sp
 import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
 import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.layout.contentMaxWidth
-import com.jacobrozell.dartbuddy.ui.layout.currentSmallestScreenWidthDp
 import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
+import com.jacobrozell.dartbuddy.ui.layout.setupScrollBottomPadding
 import com.jacobrozell.dartbuddy.ui.layout.tabScrollBottomPadding
+import com.jacobrozell.dartbuddy.ui.layout.usesAccessibilitySetupHomeLayout
 import com.jacobrozell.dartbuddy.ui.layout.usesWideSetupHomeLayout
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
@@ -270,6 +271,7 @@ fun <T> BrandSegmented(
     selected: T,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    segmentAccessibilityLabel: (@Composable (T, String) -> String)? = null,
 ) {
     val layout = rememberLayoutContext()
     val dark = isSystemInDarkTheme()
@@ -298,6 +300,7 @@ fun <T> BrandSegmented(
                         selectedBg = selectedBg,
                         expand = true,
                         onClick = { onSelect(value) },
+                        accessibilityLabel = segmentAccessibilityLabel?.invoke(value, label),
                     )
                 }
             }
@@ -314,6 +317,7 @@ fun <T> BrandSegmented(
                             selectedBg = selectedBg,
                             expand = false,
                             onClick = { onSelect(value) },
+                            accessibilityLabel = segmentAccessibilityLabel?.invoke(value, label),
                         )
                     }
                 }
@@ -328,6 +332,7 @@ fun <T> BrandSegmented(
                             expand = true,
                             onClick = { onSelect(value) },
                             modifier = Modifier.weight(1f),
+                            accessibilityLabel = segmentAccessibilityLabel?.invoke(value, label),
                         )
                     }
                 }
@@ -344,6 +349,7 @@ private fun SegmentButton(
     expand: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    accessibilityLabel: String? = null,
 ) {
     Box(
         modifier = modifier
@@ -352,6 +358,13 @@ private fun SegmentButton(
             .clip(RoundedCornerShape(DS.radiusSm))
             .background(if (selected) selectedBg else Color.Transparent)
             .clickable(onClick = onClick)
+            .then(
+                if (accessibilityLabel != null) {
+                    Modifier.semantics { contentDescription = accessibilityLabel }
+                } else {
+                    Modifier
+                },
+            )
             .padding(horizontal = if (expand) 8.dp else 0.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -433,8 +446,11 @@ fun SetupHomeChrome(
 ) {
     val dark = isSystemInDarkTheme()
     val bg = if (dark) Brand.BackgroundDark else Brand.BackgroundLight
+    val layout = rememberLayoutContext()
+    val layoutMaxWidth = contentMaxWidth(layout)
+    val scrollBottom = setupScrollBottomPadding(layout)
+    val showFooterValidation = !usesAccessibilitySetupHomeLayout(layout)
     BoxWithConstraints(modifier.fillMaxSize().background(bg)) {
-        val layoutMaxWidth = contentMaxWidth(currentSmallestScreenWidthDp())
         Column(Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -447,7 +463,7 @@ fun SetupHomeChrome(
                         .widthIn(max = layoutMaxWidth)
                         .align(Alignment.TopCenter)
                         .padding(horizontal = DS.s4)
-                        .padding(bottom = DS.s4),
+                        .padding(bottom = scrollBottom),
                 ) {
                     content()
                 }
@@ -460,7 +476,9 @@ fun SetupHomeChrome(
                     loading = startLoading,
                     testTag = AccessibilityIds.START_MATCH_BUTTON,
                 )
-                validationErrors.forEach { ErrorBanner(it) }
+                if (showFooterValidation) {
+                    validationErrors.forEach { ErrorBanner(it) }
+                }
             }
         }
     }

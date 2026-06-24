@@ -44,6 +44,8 @@ fun PlayerScoreCard(
     modifier: Modifier = Modifier,
     dartSlotAlphas: List<Float> = emptyList(),
     useWideLayout: Boolean = false,
+    useStackedLayout: Boolean = false,
+    hideInlineStats: Boolean = false,
 ) {
     val dark = isSystemInDarkTheme()
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
@@ -70,10 +72,34 @@ fun PlayerScoreCard(
         Box(
             modifier = Modifier
                 .width(6.dp)
-                .height(if (useWideLayout) 72.dp else 88.dp)
+                .height(
+                    when {
+                        useStackedLayout -> 120.dp
+                        useWideLayout -> 72.dp
+                        else -> 88.dp
+                    },
+                )
                 .background(if (isActive) accentColor else Color.Transparent),
         )
-        if (useWideLayout) {
+        when {
+            useStackedLayout -> {
+                StackedScoreCardBody(
+                    name = name,
+                    score = score,
+                    setsWon = setsWon,
+                    legsWon = legsWon,
+                    isActive = isActive,
+                    accentColor = accentColor,
+                    visitDarts = visitDarts,
+                    dartsThrown = dartsThrown,
+                    average = average,
+                    dartBox = dartBox,
+                    secondary = secondary,
+                    dartSlotAlphas = dartSlotAlphas,
+                    showInlineStats = !hideInlineStats,
+                )
+            }
+            useWideLayout -> {
             WideScoreCardBody(
                 name = name,
                 score = score,
@@ -88,7 +114,8 @@ fun PlayerScoreCard(
                 secondary = secondary,
                 dartSlotAlphas = dartSlotAlphas,
             )
-        } else {
+            }
+            else -> {
             StandardScoreCardBody(
                 name = name,
                 score = score,
@@ -103,6 +130,60 @@ fun PlayerScoreCard(
                 secondary = secondary,
                 dartSlotAlphas = dartSlotAlphas,
             )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StackedScoreCardBody(
+    name: String,
+    score: Int,
+    setsWon: Int,
+    legsWon: Int,
+    isActive: Boolean,
+    accentColor: Color,
+    visitDarts: List<DartInput>,
+    dartsThrown: Int,
+    average: Double,
+    dartBox: Color,
+    secondary: Color,
+    dartSlotAlphas: List<Float>,
+    showInlineStats: Boolean,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (isActive) {
+            Text(
+                stringResource(R.string.play_x01_turn_active),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = accentColor,
+            )
+        }
+        Text(
+            "$score",
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Black,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (isActive) accentColor else secondary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        SetsLegsLine(setsWon, legsWon, secondary)
+        if (isActive) {
+            VisitDartRow(visitDarts, dartBox, dartSlotAlphas)
+        }
+        if (showInlineStats) {
+            StatsColumn(average, dartsThrown, secondary, alignStart = true)
         }
     }
 }
@@ -267,8 +348,13 @@ private fun VisitDartRow(
 }
 
 @Composable
-private fun StatsColumn(average: Double, dartsThrown: Int, secondary: Color) {
-    Column(horizontalAlignment = Alignment.End) {
+private fun StatsColumn(
+    average: Double,
+    dartsThrown: Int,
+    secondary: Color,
+    alignStart: Boolean = false,
+) {
+    Column(horizontalAlignment = if (alignStart) Alignment.Start else Alignment.End) {
         Text(
             String.format("%.1f", average),
             fontWeight = FontWeight.SemiBold,

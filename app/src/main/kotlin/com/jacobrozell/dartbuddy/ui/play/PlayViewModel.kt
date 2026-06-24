@@ -11,6 +11,7 @@ import com.jacobrozell.dartbuddy.data.repository.PlayerSummary
 import com.jacobrozell.dartbuddy.data.repository.SettingsRepository
 import com.jacobrozell.dartbuddy.domain.bots.BotDifficulty
 import com.jacobrozell.dartbuddy.domain.bots.CustomBotMetrics
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
 import com.jacobrozell.dartbuddy.domain.engine.CricketEngine
 import com.jacobrozell.dartbuddy.domain.engine.X01Engine
 import com.jacobrozell.dartbuddy.domain.model.CricketScoringMode
@@ -416,6 +417,7 @@ class PlayViewModel @Inject constructor(
             pendingStartSource = "rematch"
             return
         }
+        if (!ProductSurface.showsTrainingBots) return
         practiceSetupStore.consume()?.let { setup ->
             _uiState.update {
                 it.copy(

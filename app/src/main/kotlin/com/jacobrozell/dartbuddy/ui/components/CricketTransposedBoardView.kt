@@ -19,6 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.jacobrozell.dartbuddy.R
 import com.jacobrozell.dartbuddy.domain.engine.CricketTarget
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 
@@ -95,18 +97,20 @@ fun CricketTransposedBoardView(
             }
         }
 
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
-                .background(activeFill.copy(alpha = 0.35f)),
-            contentAlignment = Alignment.Center,
+                .background(activeFill.copy(alpha = 0.35f))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "${column.score}",
-                fontWeight = FontWeight.Bold,
-                color = column.accentColor,
-                style = MaterialTheme.typography.titleMedium,
+                stringResource(R.string.play_cricket_column_footer_darts, column.dartsThrown),
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Text(
+                stringResource(R.string.play_cricket_column_footer_mpr, column.marksPerRound),
+                style = MaterialTheme.typography.labelSmall,
             )
         }
     }

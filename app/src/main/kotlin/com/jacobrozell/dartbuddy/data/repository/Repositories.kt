@@ -17,6 +17,7 @@ import com.jacobrozell.dartbuddy.domain.bots.BotKind
 import com.jacobrozell.dartbuddy.domain.bots.BotSkillProfile
 import com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator
 import com.jacobrozell.dartbuddy.domain.bots.TrainingBotEligibilityService
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
 import com.jacobrozell.dartbuddy.domain.bots.TrainingBotException
 import com.jacobrozell.dartbuddy.domain.bots.TrainingBotSkillResolver
 import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
@@ -214,6 +215,7 @@ class PlayerRepository @Inject constructor(
         playerDao.getTrainingBotFor(linkedTo)?.toSummary()
 
     suspend fun createTrainingBot(humanPlayerId: String): PlayerSummary {
+        if (!ProductSurface.showsTrainingBots) throw TrainingBotException.InvalidPlayer
         val human = playerDao.getById(humanPlayerId)
             ?: throw TrainingBotException.InvalidPlayer
         if (human.isBot || human.isArchived) throw TrainingBotException.InvalidPlayer

@@ -15,6 +15,7 @@ import com.jacobrozell.dartbuddy.domain.bots.TrainingBotException
 import com.jacobrozell.dartbuddy.domain.bots.TrainingBotSkillResolver
 import com.jacobrozell.dartbuddy.domain.export.PlayerExportService
 import com.jacobrozell.dartbuddy.domain.model.MatchType
+import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
 import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.domain.service.MatchStatsCalculator
 import com.jacobrozell.dartbuddy.domain.service.PlayerModeStats
@@ -69,7 +70,7 @@ class PlayerDetailViewModel @Inject constructor(
             _uiState.value = PlayerDetailUiState(player = player, isLoadingStats = player != null)
             if (player == null) return@launch
             loadStats(playerId, player.name)
-            if (!player.isBot) {
+            if (!player.isBot && ProductSurface.showsTrainingBots) {
                 val bot = playerRepository.fetchTrainingBot(playerId)
                 _uiState.update {
                     it.copy(
@@ -151,6 +152,7 @@ class PlayerDetailViewModel @Inject constructor(
     }
 
     fun createTrainingBot(humanPlayerId: String) {
+        if (!ProductSurface.showsTrainingBots) return
         viewModelScope.launch {
             _uiState.update { it.copy(isCreatingTrainingBot = true, trainingBotErrorRes = null) }
             try {
@@ -168,6 +170,7 @@ class PlayerDetailViewModel @Inject constructor(
     }
 
     fun exportPlayer(context: Context, playerId: String) {
+        if (!ProductSurface.showsPlayerExport) return
         viewModelScope.launch {
             val player = playerRepository.getById(playerId) ?: return@launch
             if (player.isBot) return@launch
