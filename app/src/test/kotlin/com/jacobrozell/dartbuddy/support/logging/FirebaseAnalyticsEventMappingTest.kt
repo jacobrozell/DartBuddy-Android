@@ -1,5 +1,6 @@
 package com.jacobrozell.dartbuddy.support.logging
 
+import com.jacobrozell.dartbuddy.domain.model.MatchType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -21,6 +22,44 @@ class FirebaseAnalyticsEventMappingTest {
         assertEquals("app_open", event?.name)
         assertEquals("1.0.0", event?.parameters?.get("app_version"))
         assertEquals("x01", event?.parameters?.get("matchType"))
+    }
+
+    @Test
+    fun mapsGameModeForfeitedEvent() {
+        val entry = LogEntry(
+            timestamp = Date(),
+            level = LogLevel.INFO,
+            category = LogCategory.APP_LIFECYCLE,
+            eventName = "game_mode_forfeited",
+            message = "forfeited",
+            metadata = mapOf(
+                "matchType" to "x01",
+                "gameModeId" to "standard.x01",
+                "resolution" to "automatic",
+            ),
+        )
+        val event = FirebaseAnalyticsEventMapping.map(entry, appVersion = "1.0.0")
+        assertEquals("game_mode_forfeited", event?.name)
+        assertEquals("standard.x01", event?.parameters?.get("gameModeId"))
+    }
+
+    @Test
+    fun mapsClientEnvironmentChangedEvent() {
+        val entry = LogEntry(
+            timestamp = Date(),
+            level = LogLevel.INFO,
+            category = LogCategory.APP_LIFECYCLE,
+            eventName = "client_environment_changed",
+            message = "changed",
+            metadata = mapOf(
+                "deviceClass" to "phone",
+                "trigger" to "voiceover",
+                "changedSignals" to "voiceover",
+            ),
+        )
+        val event = FirebaseAnalyticsEventMapping.map(entry, appVersion = null)
+        assertEquals("client_environment_changed", event?.name)
+        assertEquals("phone", event?.parameters?.get("deviceClass"))
     }
 
     @Test
@@ -80,5 +119,16 @@ class BotAnalyticsTest {
         assertEquals("true", metadata["hasBot"])
         assertEquals("training", metadata["botKind"])
         assertTrue(!metadata.containsKey("botDifficulty"))
+    }
+}
+
+class GameModeAnalyticsTest {
+    @Test
+    fun x01MetadataIncludesCatalogFields() {
+        val metadata = GameModeAnalytics.metadata(matchType = MatchType.X01, participantCount = 2)
+        assertEquals("standard.x01", metadata["gameModeId"])
+        assertEquals("standard", metadata["gameModeSection"])
+        assertEquals("checkoutScore", metadata["uiTemplate"])
+        assertEquals("checkout", metadata["statKind"])
     }
 }
