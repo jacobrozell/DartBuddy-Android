@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Feature gate for Android releases. Mirrors iOS `ProductSurface.lean1_0` on `dart-buddy-ios` `master`. Each release branch sets **one** active surface constant in code (future: `domain/surface/ProductSurface.kt`).
+Feature gate for Android releases. Mirrors iOS `ProductSurface.lean1_0` on [Dart-Buddy](https://github.com/jacobrozell/Dart-Buddy) `master`. Each release branch sets **one** active surface constant in code (future: `domain/surface/ProductSurface.kt`).
 
 ---
 
@@ -53,4 +53,4 @@ Add Android game-mode specs under `specs/game-modes/implemented/` as each mode p
 
 ## 5. iOS reference
 
-iOS source of truth for **what** ships: `dart-buddy-ios` `ProductSurface` / release checklists. Android implements **when** on the paired release branch — see [`docs/releases/README.md`](../docs/releases/README.md).
+iOS source of truth for **what** ships: [Dart-Buddy](https://github.com/jacobrozell/Dart-Buddy) `ProductSurface` / release checklists. Android implements **when** on the paired release branch — see [`docs/releases/README.md`](../docs/releases/README.md).

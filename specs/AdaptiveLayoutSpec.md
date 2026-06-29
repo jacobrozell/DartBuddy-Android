@@ -1,7 +1,7 @@
 # Adaptive layout & edge-to-edge plan
 
 > **Status:** Shipped (lean 1.0) — 2026-06-23  
-> **iOS reference:** `dart-buddy-ios/DesignSystem/Components/GameplayLayout.swift`, [`docs/gameplay-layout-modes.md`](../dart-buddy-ios/docs/gameplay-layout-modes.md)  
+> **iOS reference:** Dart-Buddy `GameplayLayout.swift`, [`docs/gameplay-layout-modes.md`](https://github.com/jacobrozell/Dart-Buddy/blob/master/docs/gameplay-layout-modes.md)  
 > **Android code today:** `ui/layout/GameplayLayout.kt`, `ui/designsystem/BrandComponents.kt`, `MainActivity.kt`
 
 ## 1. Problem statement
@@ -318,7 +318,7 @@ Suggested branch commits:
 | [`PARITY.md`](../PARITY.md) | Mark tablet/iPad rows when P1 done |
 | [`STATUS.md`](../STATUS.md) | Remaining work → P0 insets |
 | [`docs/release/`](../docs/releases/README.md) | Add layout smoke to release checklist |
-| iOS [`gameplay-layout-modes.md`](../dart-buddy-ios/docs/gameplay-layout-modes.md) | Keep in sync when adding helpers |
+| iOS [`gameplay-layout-modes.md`](https://github.com/jacobrozell/Dart-Buddy/blob/master/docs/gameplay-layout-modes.md) | Keep in sync when adding helpers |
 
 ---
 

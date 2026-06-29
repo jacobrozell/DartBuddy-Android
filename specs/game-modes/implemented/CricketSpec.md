@@ -2,7 +2,7 @@
 
 ## 1. Canonical behavior
 
-Rules (standard vs cut-throat, points on/off, mark scoring): **[`dart-buddy-ios/specs/game-modes/implemented/CricketSpec.md`](../../dart-buddy-ios/specs/game-modes/implemented/CricketSpec.md)**.
+Rules (standard vs cut-throat, points on/off, mark scoring): **[game-modes/implemented/CricketSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/game-modes/implemented/CricketSpec.md)**.
 
 ---
 

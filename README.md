@@ -14,7 +14,7 @@ Kotlin + Jetpack Compose port of **Dart Buddy iOS 1.0.0 lean** (X01 + Cricket, p
 ./gradlew assembleDebug test   # passing
 ```
 
-**iOS repo:** [jacobrozell/Dart-Buddy](https://github.com/jacobrozell/Dart-Buddy) · **Specs submodule:** `dart-buddy-ios/specs/` (after `git submodule update --init`)
+**iOS repo:** [jacobrozell/Dart-Buddy](https://github.com/jacobrozell/Dart-Buddy) · **Behavior specs:** [Dart-Buddy/specs/](https://github.com/jacobrozell/Dart-Buddy/tree/master/specs)
 
 ---
 
@@ -105,19 +105,13 @@ Unit tests: X01/Cricket engines, checkout suggester, bots, custom bots, onboardi
 
 ## iOS reference
 
-**Behavior specs (canonical):** git submodule `dart-buddy-ios/specs/`
+**Behavior specs (canonical):** [Dart-Buddy/specs/](https://github.com/jacobrozell/Dart-Buddy/tree/master/specs) on GitHub
 
 **Android implementation specs:** [`specs/README.md`](specs/README.md) — Room, Compose, manifest, Kotlin map
 
-After clone:
-
-```bash
-git submodule update --init --recursive
-```
-
 Key cross-links:
 
-- Behavior: `dart-buddy-ios/specs/game-modes/implemented/X01GameSpec.md`
-- Android: `specs/game-modes/implemented/X01GameSpec.md`
-- Architecture: `specs/ArchitectureSpec.md`
+- Behavior: [X01GameSpec (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/game-modes/implemented/X01GameSpec.md)
+- Android: [`specs/game-modes/implemented/X01GameSpec.md`](specs/game-modes/implemented/X01GameSpec.md)
+- Architecture: [`specs/ArchitectureSpec.md`](specs/ArchitectureSpec.md)
 - Package: `com.jacobrozell.dartbuddy`

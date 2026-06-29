@@ -2,7 +2,7 @@
 
 ## 1. Canonical behavior
 
-All scoring rules, checkout logic, leg/set formats, and bust handling: **[`dart-buddy-ios/specs/game-modes/implemented/X01GameSpec.md`](../../dart-buddy-ios/specs/game-modes/implemented/X01GameSpec.md)**.
+All scoring rules, checkout logic, leg/set formats, and bust handling: **[game-modes/implemented/X01GameSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/game-modes/implemented/X01GameSpec.md)**.
 
 ---
 

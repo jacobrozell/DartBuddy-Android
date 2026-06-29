@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Define the production architecture for Dart Buddy on Android: clean boundaries between Compose UI, domain engines, and Room persistence. **Behavior** matches iOS; see [`dart-buddy-ios/specs/ArchitectureSpec.md`](../dart-buddy-ios/specs/ArchitectureSpec.md) for product-level module intent.
+Define the production architecture for Dart Buddy on Android: clean boundaries between Compose UI, domain engines, and Room persistence. **Behavior** matches iOS; see [ArchitectureSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/ArchitectureSpec.md) for product-level module intent.
 
 | Field | Value |
 |-------|-------|
@@ -93,4 +93,4 @@ com.jacobrozell.dartbuddy/
 
 ## 8. Release alignment
 
-Android release branches track iOS marketing versions. See [`docs/releases/README.md`](../docs/releases/README.md). Port domain changes from the matching `dart-buddy-ios` branch before UI polish.
+Android release branches track iOS marketing versions. See [`docs/releases/README.md`](../docs/releases/README.md). Port domain changes from the matching [Dart-Buddy](https://github.com/jacobrozell/Dart-Buddy) branch before UI polish.

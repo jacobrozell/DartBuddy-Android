@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Android implementation of match create → play → complete/forfeit → history. **Canonical behavior:** [`dart-buddy-ios/specs/MatchSpec.md`](../dart-buddy-ios/specs/MatchSpec.md).
+Android implementation of match create → play → complete/forfeit → history. **Canonical behavior:** [MatchSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/MatchSpec.md).
 
 ---
 
@@ -43,7 +43,7 @@ Checkpoint: service writes snapshot + `eventsJson` on turn submit, undo, leg/set
 
 ## 5. Forfeit (Save & Forfeit)
 
-**Behavior:** [`dart-buddy-ios/specs/MatchForfeitSpec.md`](../dart-buddy-ios/specs/MatchForfeitSpec.md)
+**Behavior:** [MatchForfeitSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/MatchForfeitSpec.md)
 
 Implementation: `ui/components/ForfeitSheet.kt`, `domain/service/MatchForfeitResolver.kt`, tests in `MatchForfeitResolverTest.kt`.
 
@@ -51,7 +51,7 @@ Implementation: `ui/components/ForfeitSheet.kt`, `domain/service/MatchForfeitRes
 
 ## 6. Match summary
 
-**Behavior:** [`dart-buddy-ios/specs/MatchSummarySpec.md`](../dart-buddy-ios/specs/MatchSummarySpec.md)
+**Behavior:** [MatchSummarySpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/MatchSummarySpec.md)
 
 Android lean 1.0: trophy, stats cards, **undo last throw**, rematch, view in Activity. Landscape split layout partial vs iOS.
 

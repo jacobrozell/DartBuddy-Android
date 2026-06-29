@@ -4,7 +4,7 @@
 
 | Layer | Location | Owns |
 |-------|----------|------|
-| **Behavior** | `dart-buddy-ios/specs/` | Rules, UX intent, copy, edge cases |
+| **Behavior** | [Dart-Buddy/specs/](https://github.com/jacobrozell/Dart-Buddy/tree/master/specs) (iOS repo) | Rules, UX intent, copy, edge cases |
 | **Android implementation** | `specs/` (this repo) | Room, Compose, manifest, Kotlin classes, platform gaps |
 
 When behavior changes on iOS, update the iOS spec first (or in the same PR on the paired release branch), then update Android spec + code.
@@ -23,14 +23,11 @@ When behavior changes on iOS, update the iOS spec first (or in the same PR on th
 
 ---
 
-## 3. Submodule
+## 3. iOS reference repo
 
-`dart-buddy-ios` pins a commit of the iOS repo. Bump submodule when starting a port from a new iOS release tag or branch.
+Behavior specs live in the separate iOS repo: [jacobrozell/Dart-Buddy](https://github.com/jacobrozell/Dart-Buddy).
 
-```bash
-cd dart-buddy-ios && git fetch && git checkout release/1.1.0
-cd .. && git add dart-buddy-ios && git commit -m "Bump iOS reference for 1.1.0 port"
-```
+When starting a port from a new iOS release, check out the matching branch or tag there (e.g. `release/1.1.0`, tag `1.0.0`) and link release notes in the Android PR. No submodule — clone both repos side by side if needed.
 
 ---
 

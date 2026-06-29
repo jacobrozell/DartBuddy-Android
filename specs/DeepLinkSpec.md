@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Android implementation of [`dart-buddy-ios/specs/DeepLinkSpec.md`](../dart-buddy-ios/specs/DeepLinkSpec.md). Same URL registry and versioning policy; routing via `MainActivity` intent + `NavHost`.
+Android implementation of [DeepLinkSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/DeepLinkSpec.md). Same URL registry and versioning policy; routing via `MainActivity` intent + `NavHost`.
 
 | Field | Value |
 |-------|-------|

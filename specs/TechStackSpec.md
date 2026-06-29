@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Concrete stack for Dart Buddy Android lean 1.0. iOS stack reference: [`dart-buddy-ios/specs/TechStackSpec.md`](../dart-buddy-ios/specs/TechStackSpec.md).
+Concrete stack for Dart Buddy Android lean 1.0. iOS stack reference: [TechStackSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/TechStackSpec.md).
 
 | Field | Value |
 |-------|-------|
@@ -40,7 +40,7 @@ Concrete stack for Dart Buddy Android lean 1.0. iOS stack reference: [`dart-budd
 ./gradlew assembleDebug test
 ```
 
-CI: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — Ubuntu, JDK 17, submodule checkout.
+CI: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — Ubuntu, JDK 17, standard checkout.
 
 ---
 

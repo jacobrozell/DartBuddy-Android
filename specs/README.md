@@ -1,15 +1,13 @@
 # Dart Buddy Android — Specs Index
 
-Android implementation specs for **Dart Buddy**. **Product behavior** (rules, UX intent, invariants) remains canonical in the iOS repo submodule [`dart-buddy-ios/specs/`](../dart-buddy-ios/specs/). Files here describe **how Android implements** that behavior.
+Android implementation specs for **Dart Buddy**. **Product behavior** (rules, UX intent, invariants) remains canonical in the iOS repo [Dart-Buddy/specs/](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/). Files here describe **how Android implements** that behavior.
 
 | Field | Value |
 |-------|-------|
 | **Application ID** | `com.jacobrozell.dartbuddy` |
 | **Lean 1.0 surface** | [`ProductSurfaceSpec.md`](ProductSurfaceSpec.md) |
-| **iOS behavior specs** | [`dart-buddy-ios/specs/`](../dart-buddy-ios/specs/) |
+| **iOS behavior specs** | [Dart-Buddy/specs/](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/) |
 | **Parity tracker** | [`../PARITY.md`](../PARITY.md) |
-
-After clone: `git submodule update --init --recursive`
 
 ---
 
@@ -42,15 +40,15 @@ After clone: `git submodule update --init --recursive`
 
 | Spec | iOS behavior (canonical) | Android implementation |
 |------|------------------------|------------------------|
-| Match lifecycle | [`dart-buddy-ios/specs/MatchSpec.md`](../dart-buddy-ios/specs/MatchSpec.md) | [`MatchSpec.md`](MatchSpec.md) |
-| Forfeit | [`dart-buddy-ios/specs/MatchForfeitSpec.md`](../dart-buddy-ios/specs/MatchForfeitSpec.md) | § in [`MatchSpec.md`](MatchSpec.md) |
-| Match summary | [`dart-buddy-ios/specs/MatchSummarySpec.md`](../dart-buddy-ios/specs/MatchSummarySpec.md) | § in [`MatchSpec.md`](MatchSpec.md) |
-| Play home | [`dart-buddy-ios/specs/PlayHomeSpec.md`](../dart-buddy-ios/specs/PlayHomeSpec.md) | § in [`AppShellSpec.md`](AppShellSpec.md) |
-| Setup flow | [`dart-buddy-ios/specs/SetupFlowSpec.md`](../dart-buddy-ios/specs/SetupFlowSpec.md) | `ui/play/PlayScreen.kt`, `PlayViewModel.kt` |
-| Players | [`dart-buddy-ios/specs/PlayerSpec.md`](../dart-buddy-ios/specs/PlayerSpec.md) | `ui/players/` |
-| Settings | [`dart-buddy-ios/specs/SettingsSpec.md`](../dart-buddy-ios/specs/SettingsSpec.md) | `ui/settings/` |
-| Custom bots | [`dart-buddy-ios/specs/CustomBotSpec.md`](../dart-buddy-ios/specs/CustomBotSpec.md) | `domain/bots/`, `ui/players/` |
-| Scoring input | [`dart-buddy-ios/specs/ScoringInputSpec.md`](../dart-buddy-ios/specs/ScoringInputSpec.md) | `ui/components/ScoringPad.kt` |
+| Match lifecycle | [MatchSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/MatchSpec.md) | [`MatchSpec.md`](MatchSpec.md) |
+| Forfeit | [MatchForfeitSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/MatchForfeitSpec.md) | § in [`MatchSpec.md`](MatchSpec.md) |
+| Match summary | [MatchSummarySpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/MatchSummarySpec.md) | § in [`MatchSpec.md`](MatchSpec.md) |
+| Play home | [PlayHomeSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/PlayHomeSpec.md) | § in [`AppShellSpec.md`](AppShellSpec.md) |
+| Setup flow | [SetupFlowSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/SetupFlowSpec.md) | `ui/play/PlayScreen.kt`, `PlayViewModel.kt` |
+| Players | [PlayerSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/PlayerSpec.md) | `ui/players/` |
+| Settings | [SettingsSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/SettingsSpec.md) | `ui/settings/` |
+| Custom bots | [CustomBotSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/CustomBotSpec.md) | `domain/bots/`, `ui/players/` |
+| Scoring input | [ScoringInputSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/ScoringInputSpec.md) | `ui/components/ScoringPad.kt` |
 
 ---
 
@@ -58,7 +56,7 @@ After clone: `git submodule update --init --recursive`
 
 | Android spec | iOS behavior | Status |
 |--------------|--------------|--------|
-| [`game-modes/implemented/X01GameSpec.md`](game-modes/implemented/X01GameSpec.md) | [`dart-buddy-ios/specs/game-modes/implemented/X01GameSpec.md`](../dart-buddy-ios/specs/game-modes/implemented/X01GameSpec.md) | Shipped lean 1.0 |
-| [`game-modes/implemented/CricketSpec.md`](game-modes/implemented/CricketSpec.md) | [`dart-buddy-ios/specs/game-modes/implemented/CricketSpec.md`](../dart-buddy-ios/specs/game-modes/implemented/CricketSpec.md) | Shipped lean 1.0 |
+| [`game-modes/implemented/X01GameSpec.md`](game-modes/implemented/X01GameSpec.md) | [game-modes/implemented/X01GameSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/game-modes/implemented/X01GameSpec.md) | Shipped lean 1.0 |
+| [`game-modes/implemented/CricketSpec.md`](game-modes/implemented/CricketSpec.md) | [game-modes/implemented/CricketSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/game-modes/implemented/CricketSpec.md) | Shipped lean 1.0 |
 
 Party Pack (1.1.0): port iOS specs on `release/1.1.0` when that Android branch opens — add `game-modes/implemented/{Baseball,Killer,Shanghai}GameSpec.md` per release.

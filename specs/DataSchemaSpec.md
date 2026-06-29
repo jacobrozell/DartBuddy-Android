@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Room persistence for Dart Buddy Android. **Entity semantics and invariants** align with [`dart-buddy-ios/specs/DataSchemaSpec.md`](../dart-buddy-ios/specs/DataSchemaSpec.md); this spec defines the Android storage shape.
+Room persistence for Dart Buddy Android. **Entity semantics and invariants** align with [DataSchemaSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/DataSchemaSpec.md); this spec defines the Android storage shape.
 
 | Field | Value |
 |-------|-------|

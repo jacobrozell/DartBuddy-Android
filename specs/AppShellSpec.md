@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Root shell for lean 1.0 Android. Behavior aligns with [`dart-buddy-ios/specs/AppShellSpec.md`](../dart-buddy-ios/specs/AppShellSpec.md) and [`ProductSurfaceSpec.md`](ProductSurfaceSpec.md).
+Root shell for lean 1.0 Android. Behavior aligns with [AppShellSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/AppShellSpec.md) and [`ProductSurfaceSpec.md`](ProductSurfaceSpec.md).
 
 | Field | Value |
 |-------|-------|
@@ -41,7 +41,7 @@ Implementation: `ui/navigation/NavHost.kt`, `ShellViewModel.kt`.
 - **Resume banner** on Play and Activity when active match exists.
 - Deep link `dartbuddy://v1/play/resume` selects Play and resumes session.
 
-iOS parity: [`dart-buddy-ios/specs/PlayHomeSpec.md`](../dart-buddy-ios/specs/PlayHomeSpec.md).
+iOS parity: [PlayHomeSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/PlayHomeSpec.md).
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Versioning and migration policy for `DartBuddyDatabase`. iOS equivalent: [`dart-buddy-ios/specs/SwiftData.md`](../dart-buddy-ios/specs/SwiftData.md).
+Versioning and migration policy for `DartBuddyDatabase`. iOS equivalent: [SwiftData.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/SwiftData.md).
 
 ---
 
