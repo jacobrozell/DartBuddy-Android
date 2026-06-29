@@ -10,8 +10,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  firebase-parity:
+    name: Firebase iOS/Android parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Android
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout iOS
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: jacobrozell/Dart-Buddy
+          path: DartBuddy
+
+      - name: Verify Firebase telemetry parity
+        run: ./scripts/check-firebase-parity.sh
+
   build-test:
     name: Gradle assembleDebug + test
+    needs: firebase-parity
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
