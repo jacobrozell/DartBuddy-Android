@@ -93,28 +93,37 @@ fun DartBuddyNavHost(
     LaunchedEffect(deepLinkPath) {
         when (deepLinkPath?.trim('/')) {
             "play", "play/setup" -> {
+                shellViewModel.logDeepLinkReceived()
                 navController.navigate(RootTab.Play.route) {
                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                     launchSingleTop = true
                     restoreState = true
                 }
+                shellViewModel.logDeepLinkApplied()
                 onDeepLinkConsumed()
             }
             "play/resume" -> pendingResumeDeepLink = true
             "players" -> {
+                shellViewModel.logDeepLinkReceived()
                 navController.navigate(RootTab.Players.route)
+                shellViewModel.logDeepLinkApplied()
                 onDeepLinkConsumed()
             }
             "activity" -> {
+                shellViewModel.logDeepLinkReceived()
                 navController.navigate(RootTab.Activity.route)
+                shellViewModel.logDeepLinkApplied()
                 onDeepLinkConsumed()
             }
             "settings" -> {
+                shellViewModel.logDeepLinkReceived()
                 navController.navigate(RootTab.Settings.route)
+                shellViewModel.logDeepLinkApplied()
                 onDeepLinkConsumed()
             }
             else -> when {
                 deepLinkPath?.startsWith("play/match/") == true -> {
+                    shellViewModel.logDeepLinkReceived()
                     val matchId = deepLinkPath.removePrefix("play/match/")
                     val route = shellViewModel.resolveActiveMatchRoute(matchId)
                     if (route != null) {
@@ -128,9 +137,11 @@ fun DartBuddyNavHost(
                             restoreState = true
                         }
                     }
+                    shellViewModel.logDeepLinkApplied()
                     onDeepLinkConsumed()
                 }
                 deepLinkPath?.startsWith("activity/history/match/") == true -> {
+                    shellViewModel.logDeepLinkReceived()
                     val matchId = deepLinkPath.removePrefix("activity/history/match/")
                     navController.navigate(RootTab.Activity.route) {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -138,9 +149,11 @@ fun DartBuddyNavHost(
                         restoreState = true
                     }
                     navController.navigate("history/$matchId")
+                    shellViewModel.logDeepLinkApplied()
                     onDeepLinkConsumed()
                 }
                 deepLinkPath?.startsWith("players/") == true -> {
+                    shellViewModel.logDeepLinkReceived()
                     val playerId = deepLinkPath.removePrefix("players/")
                     val route = shellViewModel.playerDetailRoute(playerId)
                     if (route != null) {
@@ -148,6 +161,7 @@ fun DartBuddyNavHost(
                     } else {
                         navController.navigate(RootTab.Players.route)
                     }
+                    shellViewModel.logDeepLinkApplied()
                     onDeepLinkConsumed()
                 }
                 deepLinkPath != null -> onDeepLinkConsumed()
@@ -157,10 +171,12 @@ fun DartBuddyNavHost(
 
     LaunchedEffect(pendingResumeDeepLink) {
         if (!pendingResumeDeepLink) return@LaunchedEffect
+        shellViewModel.logDeepLinkReceived()
         val match = withTimeoutOrNull(1_000) {
             shellViewModel.activeMatch.filterNotNull().first()
         }
         if (match != null) {
+            shellViewModel.logMatchResumed(match, startSource = "deepLink")
             navController.navigate("match/${match.matchType.lowercase()}/${match.id}") {
                 popUpTo(RootTab.Play.route) { saveState = true }
             }
@@ -171,6 +187,7 @@ fun DartBuddyNavHost(
                 restoreState = true
             }
         }
+        shellViewModel.logDeepLinkApplied()
         pendingResumeDeepLink = false
         onDeepLinkConsumed()
     }
@@ -292,6 +309,7 @@ fun DartBuddyNavHost(
                             navController.navigate("history/$matchId")
                         },
                         onResumeMatch = { type, matchId ->
+                            shellViewModel.logMatchResumedById(matchId, "resume")
                             navController.navigate("match/${type.lowercase()}/$matchId")
                         },
                         onStartMatch = {

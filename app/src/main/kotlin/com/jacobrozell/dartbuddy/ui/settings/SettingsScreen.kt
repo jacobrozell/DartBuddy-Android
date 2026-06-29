@@ -61,6 +61,13 @@ import com.jacobrozell.dartbuddy.ui.play.rules.GameRulesSheet
 import com.jacobrozell.dartbuddy.support.state.AppAppearancePolicy
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 import com.jacobrozell.dartbuddy.ui.theme.DartBuddyTheme
+import com.jacobrozell.dartbuddy.support.FirebaseBootstrap
+import com.jacobrozell.dartbuddy.support.logging.AnalyticsUserContext
+import com.jacobrozell.dartbuddy.support.logging.AnalyticsUserIdentity
+import com.jacobrozell.dartbuddy.support.logging.AppLogger
+import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.error
+import com.jacobrozell.dartbuddy.support.logging.warning
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -83,6 +90,8 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val localDataResetService: LocalDataResetService,
     private val onboardingStore: OnboardingStore,
+    private val logger: AppLogger,
+    private val firebaseBootstrap: FirebaseBootstrap,
 ) : ViewModel() {
     private val _loadState = MutableStateFlow(SettingsLoadState.Loading)
     val loadState: StateFlow<SettingsLoadState> = _loadState.asStateFlow()
@@ -108,14 +117,40 @@ class SettingsViewModel @Inject constructor(
 
     fun update(transform: (AppSettings) -> AppSettings) {
         viewModelScope.launch {
-            settingsRepository.save(transform(settingsRepository.get()))
+            val updated = transform(settingsRepository.get())
+            settingsRepository.save(updated)
+            AnalyticsUserContext.syncAfterSettingsApply(
+                firebaseBootstrap,
+                updated,
+                onboardingComplete = !onboardingStore.shouldPresentOnLaunch,
+            )
         }
     }
 
     fun resetAll(onComplete: () -> Unit) {
         viewModelScope.launch {
-            localDataResetService.resetAllLocalData()
-            onComplete()
+            try {
+                localDataResetService.resetAllLocalData()
+                AnalyticsUserIdentity.sync(firebaseBootstrap, null)
+                AnalyticsUserContext.sync(
+                    firebaseBootstrap,
+                    settings = null,
+                    onboardingComplete = false,
+                )
+                logger.warning(
+                    LogCategory.SETTINGS,
+                    eventName = "settings_reset_all_data",
+                    message = "Reset local data path executed.",
+                )
+                onComplete()
+            } catch (e: Exception) {
+                logger.error(
+                    LogCategory.SETTINGS,
+                    eventName = "settings_reset_failed",
+                    message = e.message ?: "Reset all local data failed.",
+                    metadata = mapOf("errorCode" to e.javaClass.simpleName),
+                )
+            }
         }
     }
 

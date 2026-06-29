@@ -15,6 +15,8 @@ import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingMode
 import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingRosterDraft
 import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingStep
 import com.jacobrozell.dartbuddy.domain.onboarding.showsOnboardingRulesIntro
+import com.jacobrozell.dartbuddy.support.FirebaseBootstrap
+import com.jacobrozell.dartbuddy.support.logging.AnalyticsUserContext
 import com.jacobrozell.dartbuddy.support.logging.AppLogger
 import com.jacobrozell.dartbuddy.support.logging.LogCategory
 import com.jacobrozell.dartbuddy.support.logging.info
@@ -43,6 +45,7 @@ class OnboardingViewModel @Inject constructor(
     private val onboardingStore: OnboardingStore,
     private val rematchStore: RematchStore,
     private val logger: AppLogger,
+    private val firebaseBootstrap: FirebaseBootstrap,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
@@ -153,6 +156,10 @@ class OnboardingViewModel @Inject constructor(
                             put("bot_tier", it.botDifficulty.rawValue)
                         }
                     },
+                )
+                AnalyticsUserContext.syncOnboardingCompleted(
+                    firebaseBootstrap,
+                    settingsRepository.get(),
                 )
             }
             _uiState.update { it.copy(isFinishing = false) }

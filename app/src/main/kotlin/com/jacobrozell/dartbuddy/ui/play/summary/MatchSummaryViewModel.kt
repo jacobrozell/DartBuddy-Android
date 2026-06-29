@@ -17,6 +17,8 @@ import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.service.MatchSessionService
 import com.jacobrozell.dartbuddy.domain.service.MatchStatsCalculator
 import com.jacobrozell.dartbuddy.domain.service.PlayerMatchStats
+import com.jacobrozell.dartbuddy.support.FirebaseBootstrap
+import com.jacobrozell.dartbuddy.support.logging.AnalyticsUserIdentity
 import com.jacobrozell.dartbuddy.support.logging.AppLogger
 import com.jacobrozell.dartbuddy.support.logging.LogCategory
 import com.jacobrozell.dartbuddy.support.logging.MatchAnalytics
@@ -53,6 +55,7 @@ class MatchSummaryViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val feedback: FeedbackServices,
     private val logger: AppLogger,
+    private val firebaseBootstrap: FirebaseBootstrap,
     private val json: Json,
 ) : ViewModel() {
 
@@ -161,6 +164,7 @@ class MatchSummaryViewModel @Inject constructor(
                         metadata = metadata,
                         correlationId = entity.id,
                     )
+                    AnalyticsUserIdentity.syncLastGameMode(firebaseBootstrap, type)
                 }
             }
         }

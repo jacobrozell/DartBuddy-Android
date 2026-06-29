@@ -25,6 +25,7 @@ import com.jacobrozell.dartbuddy.domain.model.X01LegFormat
 import com.jacobrozell.dartbuddy.support.logging.AppLogger
 import com.jacobrozell.dartbuddy.support.logging.LogCategory
 import com.jacobrozell.dartbuddy.support.logging.MatchAnalytics
+import com.jacobrozell.dartbuddy.support.logging.AnalyticsUserIdentity
 import com.jacobrozell.dartbuddy.support.logging.error
 import com.jacobrozell.dartbuddy.support.logging.info
 import com.jacobrozell.dartbuddy.R
@@ -90,6 +91,7 @@ class PlayViewModel @Inject constructor(
     private val rematchStore: RematchStore,
     private val practiceSetupStore: com.jacobrozell.dartbuddy.data.prefs.PracticeSetupStore,
     private val logger: AppLogger,
+    private val firebaseBootstrap: com.jacobrozell.dartbuddy.support.FirebaseBootstrap,
     private val l10n: L10n,
     private val json: Json,
 ) : ViewModel() {
@@ -360,6 +362,7 @@ class PlayViewModel @Inject constructor(
                     metadata = analyticsMetadata,
                     correlationId = entity.id,
                 )
+                AnalyticsUserIdentity.syncLastGameMode(firebaseBootstrap, state.setupMode)
                 pendingStartSource = null
                 onStarted(state.setupMode, entity.id)
             } catch (e: Exception) {
@@ -437,5 +440,20 @@ class PlayViewModel @Inject constructor(
             eventName = if (hasActiveMatch) "play_home_active_match" else "play_home_ready",
             message = if (hasActiveMatch) "Play home shows active match." else "Play home ready.",
         )
+    }
+
+    fun logMatchResumed(match: MatchEntity, startSource: String = "resume") {
+        viewModelScope.launch {
+            val ids = json.decodeFromString<List<String>>(match.participantIdsJson)
+            val players = ids.mapNotNull { playerRepository.getById(it) }
+            MatchAnalytics.logResumed(
+                logger = logger,
+                firebaseBootstrap = firebaseBootstrap,
+                entity = match,
+                json = json,
+                players = players,
+                startSource = startSource,
+            )
+        }
     }
 }

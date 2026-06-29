@@ -7,6 +7,7 @@ import com.jacobrozell.dartbuddy.data.repository.PlayerRepository
 import com.jacobrozell.dartbuddy.data.repository.SettingsRepository
 import com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator
 import com.jacobrozell.dartbuddy.domain.bots.DartBotEngine
+import com.jacobrozell.dartbuddy.domain.model.MatchConfigPayload
 import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.feedback.FeedbackServices
 import com.jacobrozell.dartbuddy.domain.scoring.DartInput
@@ -20,7 +21,12 @@ import com.jacobrozell.dartbuddy.ui.theme.PlayerColors
 import com.jacobrozell.dartbuddy.domain.service.MatchTurnSupport
 import com.jacobrozell.dartbuddy.domain.service.MatchVisitPreview
 import com.jacobrozell.dartbuddy.domain.service.StatsService
+import com.jacobrozell.dartbuddy.support.FirebaseBootstrap
 import com.jacobrozell.dartbuddy.support.logging.AppLogger
+import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.MatchAnalytics
+import com.jacobrozell.dartbuddy.support.logging.MatchLifecycleAnalytics
+import com.jacobrozell.dartbuddy.support.logging.info
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,6 +65,7 @@ class CricketMatchViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val feedback: FeedbackServices,
     private val logger: AppLogger,
+    private val firebaseBootstrap: FirebaseBootstrap,
     private val json: Json,
 ) : ViewModel() {
 
@@ -87,6 +94,20 @@ class CricketMatchViewModel @Inject constructor(
                 turnTotalCallerEnabled = settings.turnTotalCallerEnabled,
                 botStaggerEnabled = settings.botStaggerEnabled,
                 botDartHapticsEnabled = settings.botDartHapticsEnabled,
+            )
+            logger.info(
+                LogCategory.UI,
+                eventName = "match_screen_appeared",
+                message = "Match screen appeared.",
+                metadata = MatchAnalytics.metadata(
+                    matchType = MatchType.Cricket,
+                    config = MatchConfigPayload.Cricket(session.config),
+                    participantCount = ids.size,
+                    players = ids.mapNotNull { playerRepository.getById(it) },
+                    status = session.entity.status,
+                    eventCount = session.events.size.takeIf { it > 0 },
+                ),
+                correlationId = matchId,
             )
             scheduleBotTurnIfNeeded()
         }
@@ -298,10 +319,24 @@ class CricketMatchViewModel @Inject constructor(
     fun showForfeitDialog(show: Boolean) = _uiState.update { it.copy(showForfeitDialog = show, showExitDialog = false) }
 
     fun abandonMatch(onDone: () -> Unit) {
-        val id = _uiState.value.session?.entity?.id ?: return
+        val session = _uiState.value.session ?: return
+        val id = session.entity.id
         viewModelScope.launch {
-            matchRepository.deleteMatch(id)
-            onDone()
+            val players = session.state.players.mapNotNull { playerRepository.getById(it.playerId) }
+            val metadata = MatchLifecycleAnalytics.metadataFromCricketSession(session, players)
+            try {
+                matchRepository.deleteMatch(id)
+                MatchLifecycleAnalytics.logAbandoned(logger, MatchType.Cricket, id, metadata)
+                onDone()
+            } catch (e: Exception) {
+                MatchLifecycleAnalytics.logAbandonFailed(
+                    logger,
+                    MatchType.Cricket,
+                    id,
+                    "cricket_abandon_failed",
+                    e.message ?: "Abandon failed.",
+                )
+            }
         }
     }
 
@@ -309,11 +344,27 @@ class CricketMatchViewModel @Inject constructor(
         val session = _uiState.value.session ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isForfeitPersisting = true) }
+            val resolution = if (winnerPlayerId == null) "automatic" else "user_picked"
             try {
                 val updated = matchSessionService.forfeitMatch(session, forfeitingPlayerId, winnerPlayerId)
+                val players = session.state.players.mapNotNull { playerRepository.getById(it.playerId) }
+                MatchLifecycleAnalytics.logForfeited(
+                    logger = logger,
+                    firebaseBootstrap = firebaseBootstrap,
+                    matchType = MatchType.Cricket,
+                    matchId = session.entity.id,
+                    metadata = MatchLifecycleAnalytics.metadataFromCricketSession(updated, players, resolution),
+                )
                 _uiState.update { it.copy(session = updated, showForfeitDialog = false, isForfeitPersisting = false) }
                 onComplete(updated.entity.id)
             } catch (e: Exception) {
+                MatchLifecycleAnalytics.logForfeitFailed(
+                    logger,
+                    MatchType.Cricket,
+                    session.entity.id,
+                    e.message ?: "Forfeit persist failed.",
+                    mapOf("resolution" to resolution),
+                )
                 _uiState.update { it.copy(errorMessage = e.message, showForfeitDialog = false, isForfeitPersisting = false) }
             }
         }

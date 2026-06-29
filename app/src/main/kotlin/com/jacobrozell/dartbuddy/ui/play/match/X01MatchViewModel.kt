@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.jacobrozell.dartbuddy.data.repository.SettingsRepository
 import com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator
 import com.jacobrozell.dartbuddy.domain.bots.DartBotEngine
+import com.jacobrozell.dartbuddy.domain.model.MatchConfigPayload
 import com.jacobrozell.dartbuddy.domain.model.MatchType
 import com.jacobrozell.dartbuddy.domain.model.X01CheckInMode
 import com.jacobrozell.dartbuddy.domain.engine.CheckoutSuggester
@@ -22,7 +23,10 @@ import com.jacobrozell.dartbuddy.domain.service.MatchVisitPreview
 import com.jacobrozell.dartbuddy.domain.service.StatsService
 import com.jacobrozell.dartbuddy.support.logging.AppLogger
 import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.MatchAnalytics
+import com.jacobrozell.dartbuddy.support.logging.MatchLifecycleAnalytics
 import com.jacobrozell.dartbuddy.support.logging.info
+import com.jacobrozell.dartbuddy.support.FirebaseBootstrap
 import com.jacobrozell.dartbuddy.support.L10n
 import com.jacobrozell.dartbuddy.support.MatchConfigText
 import com.jacobrozell.dartbuddy.R
@@ -83,6 +87,7 @@ class X01MatchViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val feedback: FeedbackServices,
     private val logger: AppLogger,
+    private val firebaseBootstrap: FirebaseBootstrap,
     private val l10n: L10n,
     private val json: Json,
 ) : ViewModel() {
@@ -121,7 +126,14 @@ class X01MatchViewModel @Inject constructor(
                 LogCategory.UI,
                 eventName = "match_screen_appeared",
                 message = "Match screen appeared.",
-                metadata = mapOf("matchType" to MatchType.X01.name.lowercase()),
+                metadata = MatchAnalytics.metadata(
+                    matchType = MatchType.X01,
+                    config = MatchConfigPayload.X01(session.config),
+                    participantCount = ids.size,
+                    players = ids.mapNotNull { playerRepository.getById(it) },
+                    status = session.entity.status,
+                    eventCount = session.events.size.takeIf { it > 0 },
+                ),
                 correlationId = matchId,
             )
             scheduleBotTurnIfNeeded()
@@ -466,10 +478,24 @@ class X01MatchViewModel @Inject constructor(
     fun dismissLegWinBanner() = _uiState.update { it.copy(showLegWinBanner = false) }
 
     fun abandonMatch(onDone: () -> Unit) {
-        val id = _uiState.value.session?.entity?.id ?: return
+        val session = _uiState.value.session ?: return
+        val id = session.entity.id
         viewModelScope.launch {
-            matchRepository.deleteMatch(id)
-            onDone()
+            val players = session.state.players.mapNotNull { playerRepository.getById(it.playerId) }
+            val metadata = MatchLifecycleAnalytics.metadataFromX01Session(session, players)
+            try {
+                matchRepository.deleteMatch(id)
+                MatchLifecycleAnalytics.logAbandoned(logger, MatchType.X01, id, metadata)
+                onDone()
+            } catch (e: Exception) {
+                MatchLifecycleAnalytics.logAbandonFailed(
+                    logger,
+                    MatchType.X01,
+                    id,
+                    "x01_abandon_failed",
+                    e.message ?: "Abandon failed.",
+                )
+            }
         }
     }
 
@@ -477,11 +503,27 @@ class X01MatchViewModel @Inject constructor(
         val session = _uiState.value.session ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isForfeitPersisting = true) }
+            val resolution = if (winnerPlayerId == null) "automatic" else "user_picked"
             try {
                 val updated = matchSessionService.forfeitMatch(session, forfeitingPlayerId, winnerPlayerId)
+                val players = session.state.players.mapNotNull { playerRepository.getById(it.playerId) }
+                MatchLifecycleAnalytics.logForfeited(
+                    logger = logger,
+                    firebaseBootstrap = firebaseBootstrap,
+                    matchType = MatchType.X01,
+                    matchId = session.entity.id,
+                    metadata = MatchLifecycleAnalytics.metadataFromX01Session(updated, players, resolution),
+                )
                 _uiState.update { it.copy(session = updated, showForfeitDialog = false, isForfeitPersisting = false) }
                 onComplete(updated.entity.id)
             } catch (e: Exception) {
+                MatchLifecycleAnalytics.logForfeitFailed(
+                    logger,
+                    MatchType.X01,
+                    session.entity.id,
+                    e.message ?: "Forfeit persist failed.",
+                    mapOf("resolution" to resolution),
+                )
                 _uiState.update { it.copy(errorMessage = e.message, showForfeitDialog = false, isForfeitPersisting = false) }
             }
         }

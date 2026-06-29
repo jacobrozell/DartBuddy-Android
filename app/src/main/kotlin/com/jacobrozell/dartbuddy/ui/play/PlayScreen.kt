@@ -167,7 +167,10 @@ fun PlayScreen(
             state.activeMatch?.let { match ->
                 ResumeBanner(
                     matchType = match.matchType,
-                    onClick = { onResumeMatch(match.matchType, match.id) },
+                    onClick = {
+                        viewModel.logMatchResumed(match)
+                        onResumeMatch(match.matchType, match.id)
+                    },
                 )
             }
 
