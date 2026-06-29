@@ -37,12 +37,12 @@ class AppPair:
 PAIR_SPECS = [
     AppPairSpec(
         name="Puzzle Buddy",
-        ios_analytics_rel="PuzzleBuddy/Puzzle Buddy/Util/AppLogging.swift",
+        ios_analytics_rel="PuzzleBuddy/App/Util/AppLogging.swift",
         android_analytics_rel=(
             "PuzzleBuddy-Android/app/src/main/kotlin/com/jacobrozell/puzzlebuddy/"
             "support/logging/FirebaseAnalyticsEventMapping.kt"
         ),
-        ios_crashlytics_rel="PuzzleBuddy/Puzzle Buddy/Util/FirebaseCrashlyticsEventMapping.swift",
+        ios_crashlytics_rel="PuzzleBuddy/App/Util/FirebaseCrashlyticsEventMapping.swift",
         android_crashlytics_rel=(
             "PuzzleBuddy-Android/app/src/main/kotlin/com/jacobrozell/puzzlebuddy/"
             "support/logging/FirebaseCrashlyticsEventMapping.kt"
@@ -151,6 +151,7 @@ def resolve_pair(root: Path, spec: AppPairSpec) -> AppPair:
         spec.ios_analytics_rel,
         (
             "Dart-Buddy/Support/Logging/FirebaseAnalyticsEventMapping.swift",
+            "PuzzleBuddy/App/Util/AppLogging.swift",
             "Puzzle-Buddy/Puzzle Buddy/Util/AppLogging.swift",
             "Puzzle Buddy/Util/AppLogging.swift",
             "Support/Logging/FirebaseAnalyticsEventMapping.swift",
@@ -163,6 +164,7 @@ def resolve_pair(root: Path, spec: AppPairSpec) -> AppPair:
         CI_ANDROID_CRASHLYTICS[spec.name],
         (
             "Dart-Buddy/Support/Logging/FirebaseCrashlyticsEventMapping.swift",
+            "PuzzleBuddy/App/Util/FirebaseCrashlyticsEventMapping.swift",
             "Puzzle-Buddy/Puzzle Buddy/Util/FirebaseCrashlyticsEventMapping.swift",
             "Puzzle Buddy/Util/FirebaseCrashlyticsEventMapping.swift",
             "Support/Logging/FirebaseCrashlyticsEventMapping.swift",
