@@ -12,8 +12,8 @@ Android trails iOS by **marketing version**. Each Android release branch ports t
 
 ## Workflow
 
-1. iOS merges spec or behavior changes on `release/X.Y.Z`.
-2. On the matching Android branch: `git submodule update` in `dart-buddy-ios/`.
+1. iOS merges spec or behavior changes on `release/X.Y.Z` in [Dart-Buddy](https://github.com/jacobrozell/Dart-Buddy).
+2. On the matching Android branch: read the iOS specs at that tag/branch (clone or browse on GitHub).
 3. Port domain engines first (mirror iOS unit test names).
 4. Update [`PARITY.md`](../../PARITY.md) (or `docs/parity/X.Y.Z.md` when split).
 5. CI green → Play internal track → tag `X.Y.Z` on ship.
@@ -28,5 +28,5 @@ Android trails iOS by **marketing version**. Each Android release branch ports t
 
 | Release | Checklist | Parity |
 |---------|-----------|--------|
-| 1.0.0 lean | [`ongoing/README.md`](../../ongoing/README.md) | [`PARITY.md`](../../PARITY.md) |
+| 1.0.0 lean | [`docs/release/1.0.0-ship-checklist.md`](docs/release/1.0.0-ship-checklist.md) | [`PARITY.md`](../../PARITY.md) |
 | 1.1.0 Party Pack | TBD on `release/1.1.0` | TBD |

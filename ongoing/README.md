@@ -4,7 +4,7 @@
 
 | Item | Branch | Notes |
 |------|--------|-------|
-| Lean 1.0 store quality | `release/1.0.0` | Play Store signing — see [`STATUS.md`](../STATUS.md) |
+| Lean 1.0 store quality | `release/1.0.0` | [`docs/release/1.0.0-ship-checklist.md`](../docs/release/1.0.0-ship-checklist.md) — Play/Firebase with Jacob |
 | Party Pack port (future) | `release/1.1.0` | After lean 1.0 ships; tracks iOS `release/1.1.0` |
 
 ## Finished

@@ -1,16 +1,16 @@
 # Dart Buddy Android — current state
 
 > **Canonical detail:** [`PARITY.md`](PARITY.md) (line-by-line iOS lean 1.0 tracker)  
-> **Last updated:** 2026-06-23  
+> **Last updated:** 2026-06-29  
 > **Target:** iOS **1.0.0 lean** (`master` · `ProductSurface.lean1_0`) on **Android 16+** (`minSdk 36`)
 
 ---
 
 ## Verdict
 
-**Lean 1.0 is feature-complete for core use.** X01 and Cricket can be played end-to-end with bots, onboarding, persistence, history, settings, and match lifecycle (resume, forfeit, summary, undo). Safe for emulator/device dogfooding.
+**Lean 1.0 is feature-complete for core use.** X01 and Cricket can be played end-to-end with bots, onboarding, persistence, history, settings, and match lifecycle (resume, forfeit, summary, undo). Release APK builds; safe for emulator/device dogfooding.
 
-**Not Play Store–ready yet.** Firebase Analytics/Crashlytics, release signing, and several iOS polish items remain (see [Remaining work](#remaining-work)).
+**Not Play Store–ready yet.** Release signing, Play Console listing, and Firebase `google-services.json` on CI remain (Jacob). See [`docs/release/1.0.0-ship-checklist.md`](docs/release/1.0.0-ship-checklist.md).
 
 ---
 
@@ -22,7 +22,7 @@
 | **Version** | `1.0.0` (versionCode 1) |
 | **Stack** | Kotlin · Jetpack Compose · Hilt · Room · minSdk **36** |
 | **iOS reference** | `Dart-Buddy/` on `master`, lean 1.0 surface |
-| **Build** | `./gradlew assembleDebug test` — **passing** |
+| **Build** | `./gradlew assembleDebug assembleRelease test` — **passing** (97 unit tests) |
 | **Unit tests** | 14 test classes incl. `ProductSurfaceTest`, `StatsServiceTest` |
 
 ---
@@ -186,9 +186,10 @@ Emulator screenshots (when captured): `.emulator-screenshots/`
 |-----|---------|
 | [`PARITY.md`](PARITY.md) | Full feature matrix vs iOS lean 1.0 |
 | [`README.md`](README.md) | Setup, MCP, architecture intro |
-| [`specs/README.md`](specs/README.md) | Android implementation specs (behavior in `dart-buddy-ios/specs/`) |
+| [`specs/README.md`](specs/README.md) | Android implementation specs (behavior in [Dart-Buddy/specs/](https://github.com/jacobrozell/Dart-Buddy/tree/master/specs)) |
 | [`docs/releases/README.md`](docs/releases/README.md) | Release branch model |
-| Workspace `workspace/projects/dart-buddy-android.md` | Personal monorepo project status (local) |
+| [`docs/release/1.0.0-ship-checklist.md`](docs/release/1.0.0-ship-checklist.md) | Pre-ship checklist (Play/Firebase §5) |
+| Workspace [`workspace/projects/dart-buddy-android.md`](../workspace/projects/dart-buddy-android.md) | Personal monorepo project status |
 
 ---
 
@@ -204,4 +205,4 @@ Emulator screenshots (when captured): `.emulator-screenshots/`
 | 2026-06-23 | `ProductSurface.kt` lean 1.0 gates (training/export off in release), Play Store rate link, dynamic version label |
 | 2026-06-23 | Players tab empty state, humans/bots sections, formatted a11y strings (settings, onboarding, activity, rows) |
 | 2026-06-23 | Secondary a11y: `FormattedAccessibilityLabels` (history, stats table, setup chips, activity filters, resume/partial banners) |
-| 2026-06-23 | Dedicated AX layouts: stacked score cards, setup scroll/validation, tab bottom padding, taller pad keys |
+| 2026-06-29 | Fix flaky `ActivityFiltersTest`; verify `assembleRelease test` green; add [`docs/release/1.0.0-ship-checklist.md`](docs/release/1.0.0-ship-checklist.md) |
