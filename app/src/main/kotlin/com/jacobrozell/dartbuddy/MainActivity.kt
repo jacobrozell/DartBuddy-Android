@@ -35,6 +35,9 @@ import com.jacobrozell.dartbuddy.domain.onboarding.OnboardingMode
 import com.jacobrozell.dartbuddy.domain.surface.ProductSurface
 import com.jacobrozell.dartbuddy.support.MotionPreferences
 import com.jacobrozell.dartbuddy.support.navigation.DeepLinkParser
+import com.jacobrozell.dartbuddy.support.logging.AppLogger
+import com.jacobrozell.dartbuddy.support.logging.LogCategory
+import com.jacobrozell.dartbuddy.support.logging.info
 import com.jacobrozell.dartbuddy.ui.launch.LaunchSplashScreen
 import com.jacobrozell.dartbuddy.ui.layout.SyncSystemBarAppearance
 import com.jacobrozell.dartbuddy.ui.navigation.DartBuddyNavHost
@@ -65,6 +68,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var onboardingStore: OnboardingStore
     @Inject lateinit var demoSeeder: DemoSeeder
     @Inject lateinit var appBootstrapper: AppBootstrapper
+    @Inject lateinit var logger: AppLogger
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,7 +103,20 @@ class MainActivity : ComponentActivity() {
             var pendingDeepLink by remember { mutableStateOf(deepLinkPathFrom(intent)) }
             var showLaunchSplash by remember { mutableStateOf(true) }
             var bootstrapReady by remember { mutableStateOf(false) }
+            var loggedDeferredDeepLink by remember { mutableStateOf(false) }
             val reduceMotion = MotionPreferences.prefersReducedMotion(this)
+
+            LaunchedEffect(showOnboarding, pendingDeepLink) {
+                if (showOnboarding && pendingDeepLink != null && !loggedDeferredDeepLink) {
+                    loggedDeferredDeepLink = true
+                    logger.info(
+                        LogCategory.UI,
+                        eventName = "deep_link_deferred",
+                        message = "Deep link waiting for onboarding.",
+                        metadata = mapOf("version" to "v1"),
+                    )
+                }
+            }
 
             LaunchedEffect(Unit) {
                 coroutineScope {
@@ -132,6 +149,18 @@ class MainActivity : ComponentActivity() {
                 "light" -> false
                 "dark" -> true
                 else -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+
+            LaunchedEffect(pendingDeepLink, showOnboarding) {
+                if (pendingDeepLink != null && showOnboarding) {
+                    // Deep link is held until onboarding completes; log deferral once.
+                }
+            }
+
+            LaunchedEffect(showOnboarding, pendingDeepLink) {
+                if (showOnboarding && pendingDeepLink != null) {
+                    // Deferred logging happens when NavHost receives null deep link during onboarding
+                }
             }
 
             DartBuddyTheme(darkTheme = darkTheme) {
