@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Play Store release metadata and pipeline for Dart Buddy Android. iOS analogue: [`dart-buddy-ios/specs/AppStoreConnectSpec.md`](../dart-buddy-ios/specs/AppStoreConnectSpec.md).
+Play Store release metadata and pipeline for Dart Buddy Android. iOS analogue: [AppStoreConnectSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/AppStoreConnectSpec.md).
 
 | Field | Value |
 |-------|-------|
@@ -55,8 +55,8 @@ Reuse iOS marketing copy where accurate; generate phone screenshots from Android
 When shipping release builds:
 
 1. Add Android app in Firebase with package `com.jacobrozell.dartbuddy`.
-2. Place `google-services.json` in `app/` (gitignored).
-3. Apply Google Services + Crashlytics Gradle plugins per [`dart-buddy-ios/specs/FirebaseBackendAnalyticsSpec.md`](../dart-buddy-ios/specs/FirebaseBackendAnalyticsSpec.md) event names.
+2. Place `google-services.json` in `app/` (gitignored). Copy from [`google-services.json.example`](../app/google-services.json.example) for local/CI smoke only.
+3. Apply Google Services + Crashlytics Gradle plugins per [FirebaseBackendAnalyticsSpec.md (iOS)](https://github.com/jacobrozell/Dart-Buddy/blob/master/specs/FirebaseBackendAnalyticsSpec.md) event names.
 
 ---
 

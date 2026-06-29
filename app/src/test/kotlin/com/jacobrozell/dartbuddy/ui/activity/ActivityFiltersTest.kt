@@ -10,7 +10,8 @@ import java.time.Instant
 class ActivityFiltersTest {
     @Test
     fun periodFilterExcludesOlderMatches() {
-        val now = Instant.parse("2026-06-22T12:00:00Z")
+        // Use wall-clock "now" so cutoff() and match timestamps stay aligned (fixed dates drift after 7 days).
+        val now = Instant.now()
         val recent = sampleMatch(id = "1", startedAt = now.minusSeconds(3600))
         val old = sampleMatch(id = "2", startedAt = now.minusSeconds(10 * 24 * 3600))
         val filtered = ActivityFilters.filterMatches(
