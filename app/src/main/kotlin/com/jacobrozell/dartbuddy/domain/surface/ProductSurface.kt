@@ -75,6 +75,10 @@ object ProductSurface {
     val showsAccessibilityMarketing: Boolean get() = active.showsAccessibilityMarketing
     val bundledLocaleCodes: List<String> get() = active.bundledLocaleCodes
 
+    /** Coarse build slice label for analytics (`full` vs `lean`). */
+    val analyticsLabel: String
+        get() = if (isFullProductSurfaceEnabled) "full" else "lean"
+
     fun isMatchTypeReachable(matchType: MatchType): Boolean =
         isMatchTypeReachable(matchType, launchArguments)
 

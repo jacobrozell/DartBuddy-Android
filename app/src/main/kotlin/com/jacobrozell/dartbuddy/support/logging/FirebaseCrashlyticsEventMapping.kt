@@ -14,6 +14,7 @@ object FirebaseCrashlyticsEventMapping {
         "turn_undo_failed",
         "x01_abandon_failed",
         "cricket_abandon_failed",
+        "match_forfeit_failed",
         "settings_reset_failed",
         "seed_training_partner_failed",
     )
@@ -30,7 +31,8 @@ object FirebaseCrashlyticsEventMapping {
         "x01_abandon_failed" to 1009,
         "cricket_abandon_failed" to 1010,
         "settings_reset_failed" to 1011,
-        "seed_training_partner_failed" to 1012,
+        "match_forfeit_failed" to 1012,
+        "seed_training_partner_failed" to 1013,
     )
 
     fun nonFatalError(entry: LogEntry, appVersion: String?): Throwable? {

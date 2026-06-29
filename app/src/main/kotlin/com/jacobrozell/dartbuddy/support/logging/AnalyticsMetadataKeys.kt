@@ -1,6 +1,22 @@
 package com.jacobrozell.dartbuddy.support.logging
 
 object AnalyticsMetadataKeys {
+    val clientEnvironment: Set<String> = setOf(
+        "deviceClass",
+        "isVoiceOverRunning",
+        "isSwitchControlRunning",
+        "isBoldTextEnabled",
+        "isReduceMotionEnabled",
+        "isScreenCaptured",
+        "isExternalDisplayConnected",
+        "interfaceOrientation",
+        "contentSizeCategory",
+        "colorScheme",
+        "isLowPowerModeEnabled",
+        "trigger",
+        "changedSignals",
+    )
+
     private val blockedPersonalDataKeys = setOf(
         "playerId",
         "playerName",
@@ -35,6 +51,13 @@ object AnalyticsMetadataKeys {
         "botKinds",
         "botEffectiveTier",
         "botEffectiveTiers",
+    )
+
+    private val gameMode = setOf(
+        "gameModeId",
+        "gameModeSection",
+        "uiTemplate",
+        "statKind",
     )
 
     private val matchEntry = setOf("startSource")
@@ -77,16 +100,23 @@ object AnalyticsMetadataKeys {
 
     val firebaseParameters: Set<String> = generalFirebase
         .union(botRoster)
+        .union(gameMode)
         .union(matchEntry)
         .union(matchConfig)
         .union(onboarding)
+        .union(clientEnvironment)
 
     val crashlyticsParameters: Set<String> = setOf(
         "matchType",
+        "gameModeId",
+        "gameModeSection",
         "errorCode",
         "layer",
         "status",
         "participantCount",
+        "eventCount",
+        "durationSeconds",
+        "resolution",
         "operation",
         "schemaVersion",
         "fromSchema",

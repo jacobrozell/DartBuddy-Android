@@ -15,6 +15,7 @@ object FirebaseAnalyticsEventMapping {
         "match_started",
         "game_mode_played",
         "game_mode_completed",
+        "game_mode_forfeited",
         "match_resumed",
         "match_screen_appeared",
         "match_completed",
