@@ -2,10 +2,10 @@
 
 > **Start here:** [`STATUS.md`](STATUS.md) — current-state summary, architecture, routes, verification checklist.
 
-**Target:** Dart Buddy **1.0.0** (App Store lean) on Android 16+  
+**Target:** Dart Buddy **1.0.0** (App Store lean) on Android 13+ (`minSdk 33`)  
 **iOS baseline:** `master` branch · `ProductSurface.lean1_0`  
 **Android path:** `DartBuddy-Android/` (repo root)  
-**Last updated:** 2026-06-23
+**Last updated:** 2026-07-10
 
 ## Legend
 
@@ -369,10 +369,12 @@ Adaptive layout (`LayoutContext`, edge-to-edge, cricket transposed board) · Bot
 ## Build & test
 
 ```bash
-./gradlew assembleDebug test
+./gradlew assembleDebug test connectedDebugAndroidTest
 ```
 
-**10 unit test classes** (engines, checkout, bots, custom bots, onboarding, activity filters, forfeit resolver, game rules).
+**125 JVM unit tests** across 29 classes (engines, checkout, bots, ViewModels, stats, onboarding, activity filters, forfeit resolver, game rules).
+
+**10 instrumented tests** — in-memory Room repository contracts plus Compose UI smoke (main tabs + settings onboarding replay).
 
 **Android Studio MCP:** `build_project` with `projectPath` set to this repo root — see [`README.md`](README.md).
 

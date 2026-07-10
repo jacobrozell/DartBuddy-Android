@@ -22,7 +22,7 @@ Feature gate for Android releases. Mirrors iOS `ProductSurface.lean1_0` on [Dart
 | **Player export (DBPE)** | Off |
 | **Locales** | English only (lean 1.0) |
 | **Firebase Analytics + Crashlytics** | Target for release; not blocking dogfood |
-| **minSdk** | 36 |
+| **minSdk** | 33 |
 
 Parity detail: [`PARITY.md`](../PARITY.md).
 

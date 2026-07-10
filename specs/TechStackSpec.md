@@ -7,7 +7,7 @@ Concrete stack for Dart Buddy Android lean 1.0. iOS stack reference: [TechStackS
 | Field | Value |
 |-------|-------|
 | **Application ID** | `com.jacobrozell.dartbuddy` |
-| **minSdk / targetSdk** | 36 (Android 16+) |
+| **minSdk / targetSdk** | 33 / 36 (Android 13+ minimum) |
 
 ---
 
@@ -48,7 +48,7 @@ CI: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — Ubuntu, JDK 17
 
 - **Android Studio** — open repo root (not a parent monorepo path).
 - **Cursor + JetBrains MCP** — `build_project` with `projectPath` = repo root.
-- **Emulator** — Android 16+ system image; workspace `android-emulator` MCP optional.
+- **Emulator** — Android 13+ (API 33+) system image; workspace `android-emulator` MCP optional.
 
 ---
 

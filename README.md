@@ -20,14 +20,14 @@ Kotlin + Jetpack Compose port of **Dart Buddy iOS 1.0.0 lean** (X01 + Cricket, p
 
 ## Requirements
 
-- **minSdk 36** (Android 16)
+- **minSdk 33** (Android 13) · **targetSdk 36**
 - Android Studio Ladybug or newer
 - JDK 17
 
 ## Open in Android Studio
 
 1. **File → Open** → select this repo root (`DartBuddy-Android/`)
-2. Sync Gradle, run on an **Android 16+** emulator or device
+2. Sync Gradle, run on an **Android 13+** emulator or device
 
 ## Cursor ↔ Android Studio (MCP)
 

@@ -1,8 +1,8 @@
 # Dart Buddy Android — current state
 
 > **Canonical detail:** [`PARITY.md`](PARITY.md) (line-by-line iOS lean 1.0 tracker)  
-> **Last updated:** 2026-06-29  
-> **Target:** iOS **1.0.0 lean** (`master` · `ProductSurface.lean1_0`) on **Android 16+** (`minSdk 36`)
+> **Last updated:** 2026-07-10  
+> **Target:** iOS **1.0.0 lean** (`master` · `ProductSurface.lean1_0`) on **Android 13+** (`minSdk 33`)
 
 ---
 
@@ -20,10 +20,11 @@
 |------|-------|
 | **Package** | `com.jacobrozell.dartbuddy` |
 | **Version** | `1.0.0` (versionCode 1) |
-| **Stack** | Kotlin · Jetpack Compose · Hilt · Room · minSdk **36** |
+| **Stack** | Kotlin · Jetpack Compose · Hilt · Room · minSdk **33** · targetSdk **36** |
 | **iOS reference** | `Dart-Buddy/` on `master`, lean 1.0 surface |
-| **Build** | `./gradlew assembleDebug assembleRelease test` — **passing** (97 unit tests) |
-| **Unit tests** | 14 test classes incl. `ProductSurfaceTest`, `StatsServiceTest` |
+| **Build** | `./gradlew assembleDebug assembleRelease test connectedDebugAndroidTest` — **passing** (125 unit + 10 instrumented) |
+| **Unit tests** | 29 JVM test classes (engines, ViewModels, repositories via fakes, stats, onboarding, activity) |
+| **Instrumented tests** | Room repository contracts + tab/onboarding replay UI smoke |
 
 ---
 
@@ -206,3 +207,4 @@ Emulator screenshots (when captured): `.emulator-screenshots/`
 | 2026-06-23 | Players tab empty state, humans/bots sections, formatted a11y strings (settings, onboarding, activity, rows) |
 | 2026-06-23 | Secondary a11y: `FormattedAccessibilityLabels` (history, stats table, setup chips, activity filters, resume/partial banners) |
 | 2026-06-29 | Fix flaky `ActivityFiltersTest`; verify `assembleRelease test` green; add [`docs/release/1.0.0-ship-checklist.md`](docs/release/1.0.0-ship-checklist.md) |
+| 2026-07-10 | Lower `minSdk` 36 → 33 (Android 13+) for physical device testing (Galaxy A51) |

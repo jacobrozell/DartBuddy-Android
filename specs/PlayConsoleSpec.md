@@ -44,7 +44,7 @@ Configured in `app/build.gradle.kts` `defaultConfig`.
 
 ## 5. Store listing assets
 
-Reuse iOS marketing copy where accurate; generate phone screenshots from Android emulator (16+). Feature graphic and icon from brand assets — full splash art gap noted in [`PARITY.md`](../PARITY.md).
+Reuse iOS marketing copy where accurate; generate phone screenshots from Android emulator (API 33+). Feature graphic and icon from brand assets — full splash art gap noted in [`PARITY.md`](../PARITY.md).
 
 **Privacy / support URLs:** same as iOS GitHub Pages (`AppLinks.kt`).
 

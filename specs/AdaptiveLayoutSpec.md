@@ -6,7 +6,7 @@
 
 ## 1. Problem statement
 
-Dart Buddy Android targets **API 36+** phones and tablets. Today:
+Dart Buddy Android targets **API 33+** phones and tablets. Today:
 
 | Area | State | Risk |
 |------|-------|------|
@@ -100,7 +100,7 @@ MainActivity (enableEdgeToEdge)
 | E2 | Wrap root content in `Box(Modifier.fillMaxSize().safeDrawingPadding())` **or** configure `Scaffold(contentWindowInsets = …)` explicitly | `NavHost.kt`, `MainActivity.kt` |
 | E3 | Play setup sticky START footer — pad bottom by `max(navBar, safeDrawing.bottom)` | `SetupHomeChrome` in `BrandComponents.kt` |
 | E4 | Status bar / nav bar icon contrast — `SystemBarStyle` light/dark from theme in `MainActivity` | `MainActivity.kt` |
-| E5 | Splash theme — `android:statusBarColor` / `navigationBarColor` transparent for API 36 | `themes.xml` |
+| E5 | Splash theme — `android:statusBarColor` / `navigationBarColor` transparent for edge-to-edge | `themes.xml` |
 | E6 | Cutout — never place primary CTAs in top corners; use `displayCutout` padding on full-bleed match header | `MatchGameplayHeader.kt` |
 | E7 | IME — `Modifier.imePadding()` on sheets with text fields (add player, onboarding name) | `AddPlayerSheet.kt`, `OnboardingFlow.kt` |
 
@@ -209,7 +209,7 @@ data class LayoutContext(
 | **Hinge obscures center** | P3: Jetpack `WindowInfoTracker` — avoid primary CTAs in hinge zone |
 | **Resize mid-match** | `LayoutContext` from `BoxWithConstraints` + recomposition; persist match state (no restart) |
 
-**Manifest:** consider `android:resizeableActivity="true"` (default on API 36) — document in spec; no change needed unless disabled.
+**Manifest:** consider `android:resizeableActivity="true"` (default on API 24+) — document in spec; no change needed unless disabled.
 
 ### 6.4 Density / font outliers
 
@@ -294,7 +294,7 @@ Use in match screens instead of scattered `currentScreenWidthDp()` calls.
 
 | Priority | Milestone | Blocks store? |
 |----------|-----------|---------------|
-| **P0** | Edge-to-edge insets (§4) | **Yes** — UI under system bars looks broken on API 36 |
+| **P0** | Edge-to-edge insets (§4) | **Yes** — UI under system bars looks broken on API 33+ |
 | **P1a** | `LayoutContext` + tablet/phone fix | **Yes** — wrong layouts on large phones |
 | **P1b–d** | Match/cricket/summary tablet parity | Quality |
 | **P2** | XS + XL + split-screen hardening | Quality |
