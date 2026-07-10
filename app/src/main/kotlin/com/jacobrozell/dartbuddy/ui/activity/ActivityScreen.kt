@@ -53,11 +53,20 @@ import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.components.ResumeBanner
 import com.jacobrozell.dartbuddy.ui.designsystem.ErrorBanner
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
-import com.jacobrozell.dartbuddy.ui.designsystem.GameModeBadge
 import com.jacobrozell.dartbuddy.support.HistoryListRow
+import com.jacobrozell.dartbuddy.support.MatchHistoryCardBuilder
 import com.jacobrozell.dartbuddy.ui.designsystem.BrandSegmented
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import com.jacobrozell.dartbuddy.support.accessibility.activityFilterModeAccessibilityLabel
 import com.jacobrozell.dartbuddy.support.accessibility.activityFilterPeriodAccessibilityLabel
 import com.jacobrozell.dartbuddy.support.accessibility.activityFilterPlayerAccessibilityLabel
@@ -67,6 +76,7 @@ import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.TabRootScaffold
 import com.jacobrozell.dartbuddy.ui.theme.Brand
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -96,6 +106,9 @@ class ActivityViewModel @Inject constructor(
     matchRepository: MatchRepository,
     playerRepository: PlayerRepository,
 ) : ViewModel() {
+    private val _historyReady = MutableStateFlow(false)
+    val historyReady = _historyReady.asStateFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val history = matchRepository.observeHistory()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val historyRows = matchRepository.observeHistoryRows()
@@ -104,6 +117,16 @@ class ActivityViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val activeMatch = matchRepository.observeActiveMatch()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    init {
+        viewModelScope.launch {
+            try {
+                historyRows.first()
+            } finally {
+                _historyReady.value = true
+            }
+        }
+    }
 }
 
 @HiltViewModel
@@ -116,9 +139,13 @@ class StatisticsViewModel @Inject constructor(
     val rows = _rows.asStateFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val _includesPartial = kotlinx.coroutines.flow.MutableStateFlow(false)
     val includesPartial = _includesPartial.asStateFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun load(filter: ActivityFilter, period: ActivityPeriod, playerId: String?) {
         viewModelScope.launch {
+            _isLoading.value = true
+            try {
             val history = matchRepository.observeHistory().first()
             val filtered = ActivityFilters.filterMatches(history, filter, period, playerId)
             _includesPartial.value = filtered.any { it.status == MatchStatus.InProgress }
@@ -170,6 +197,9 @@ class StatisticsViewModel @Inject constructor(
             _rows.value = aggregates.values
                 .map { it.toRow() }
                 .sortedWith(compareByDescending<PlayerAggregateStats> { it.matchCount }.thenBy { it.name })
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -295,6 +325,7 @@ class HistoryDetailViewModel @Inject constructor(
                     }
                 }
                 val winnerIndex = ids.indexOf(entity.winnerPlayerId)
+                val resultRow = MatchHistoryCardBuilder.build(entity, json, l10n)
                 _state.value = HistoryDetailUiState(
                     loading = false,
                     detail = HistoryDetailState(
@@ -306,6 +337,7 @@ class HistoryDetailViewModel @Inject constructor(
                         winnerName = names.getOrNull(winnerIndex),
                         playerStats = stats,
                         timeline = timeline,
+                        resultRow = resultRow,
                     ),
                 )
             } catch (_: Exception) {
@@ -337,6 +369,7 @@ data class HistoryDetailState(
     val winnerName: String? = null,
     val playerStats: List<PlayerMatchStats> = emptyList(),
     val timeline: List<String> = emptyList(),
+    val resultRow: HistoryListRow? = null,
 )
 
 @Composable
@@ -348,9 +381,11 @@ fun ActivityScreen(
     statisticsViewModel: StatisticsViewModel = hiltViewModel(),
 ) {
     val historyRows by viewModel.historyRows.collectAsStateWithLifecycle()
+    val historyReady by viewModel.historyReady.collectAsStateWithLifecycle()
     val players by viewModel.players.collectAsStateWithLifecycle()
     val activeMatch by viewModel.activeMatch.collectAsStateWithLifecycle()
     val stats by statisticsViewModel.rows.collectAsStateWithLifecycle()
+    val statsLoading by statisticsViewModel.isLoading.collectAsStateWithLifecycle()
     val includesPartial by statisticsViewModel.includesPartial.collectAsStateWithLifecycle()
     var segment by remember { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf(ActivityFilter.All) }
@@ -393,30 +428,33 @@ fun ActivityScreen(
             options = listOf(0 to stringResource(R.string.activity_segment_history), 1 to stringResource(R.string.activity_segment_statistics)),
             selected = segment,
             onSelect = { segment = it },
+            segmentTestTags = listOf(AccessibilityIds.ACTIVITY_SEGMENT_HISTORY, AccessibilityIds.ACTIVITY_SEGMENT_STATISTICS),
         )
 
-        BrandSegmented(
-            options = ActivityFilter.entries.map { it to (filterLabels[it] ?: it.name) },
-            selected = filter,
-            onSelect = { filter = it },
-            segmentAccessibilityLabel = { _, label -> activityFilterModeAccessibilityLabel(label) },
-        )
-        BrandSegmented(
-            options = ActivityPeriod.entries.map { it to (periodLabels[it] ?: it.name) },
-            selected = period,
-            onSelect = { period = it },
-            segmentAccessibilityLabel = { _, label -> activityFilterPeriodAccessibilityLabel(label) },
-        )
-        BrandSegmented(
-            options = playerOptions.map { it.first to it.second },
-            selected = playerFilterId,
-            onSelect = { playerFilterId = it },
-            segmentAccessibilityLabel = { _, label -> activityFilterPlayerAccessibilityLabel(label) },
+        ActivityFilterBar(
+            filter = filter,
+            onFilterChange = { filter = it },
+            period = period,
+            onPeriodChange = { period = it },
+            playerFilterId = playerFilterId,
+            onPlayerFilterChange = { playerFilterId = it },
+            filterLabels = filterLabels,
+            periodLabels = periodLabels,
+            playerOptions = playerOptions,
         )
 
         when (segment) {
             0 -> {
-                if (filteredHistory.isEmpty()) {
+                if (!historyReady && historyRows.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(DS.s6),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(color = Brand.Green)
+                    }
+                } else if (filteredHistory.isEmpty()) {
                     com.jacobrozell.dartbuddy.ui.designsystem.ScoreboardEmptyState(
                         message = if (hasActiveFilters) {
                             stringResource(R.string.activity_empty_filtered)
@@ -462,9 +500,22 @@ fun ActivityScreen(
                 if (includesPartial) {
                     PartialMatchBanner()
                 }
-                if (stats.isEmpty()) {
+                if (statsLoading && stats.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(DS.s6),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(color = Brand.Green)
+                    }
+                } else if (stats.isEmpty()) {
                     com.jacobrozell.dartbuddy.ui.designsystem.ScoreboardEmptyState(
-                        message = stringResource(R.string.activity_stats_empty),
+                        message = if (hasActiveFilters) {
+                            stringResource(R.string.activity_stats_empty_filtered)
+                        } else {
+                            stringResource(R.string.activity_stats_empty)
+                        },
                         action = if (playerFilterId == null && period == ActivityPeriod.All) {
                             {
                                 PrimaryActionButton(
@@ -626,6 +677,7 @@ private fun StatsRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryDetailScreen(
     matchId: String,
@@ -638,100 +690,131 @@ fun HistoryDetailScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(matchId) { viewModel.load(matchId) }
 
-    TabRootScaffold {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.common_back)) }
-        when {
-            uiState.loading -> {
-                androidx.compose.foundation.layout.Box(
-                    Modifier.fillMaxWidth().padding(DS.s6),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    androidx.compose.material3.CircularProgressIndicator()
-                }
-            }
-            uiState.loadFailed -> {
-                ErrorBanner(stringResource(R.string.activity_detail_error))
-                TextButton(onClick = { viewModel.load(matchId) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.activity_detail_retry), color = Brand.Green)
-                }
-            }
-            uiState.detail != null -> {
-                val detail = uiState.detail!!
-            GameModeBadge(detail.matchType.name)
-            Text(detail.modeLabel, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(detail.participantNames.joinToString(" vs "))
-            Text(statusLabel(detail.status), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            detail.winnerName?.let {
-                Text(stringResource(R.string.play_summary_winner, it), fontWeight = FontWeight.Bold, color = Brand.Green)
-            }
-
-            if (detail.playerStats.isNotEmpty()) {
-                Text(stringResource(R.string.activity_detail_stats_title), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                if (detail.matchType == MatchType.X01) {
-                    StatTable(
-                        title = stringResource(R.string.stats_section_average_highest),
-                        columns = listOf(
-                            StatColumn(stringResource(R.string.stats_three_dart_average), 0.9f),
-                            StatColumn(stringResource(R.string.stats_highest_score), 0.8f),
-                        ),
-                        rows = detail.playerStats,
-                    ) { row -> listOf("%.1f".format(row.average3Dart), row.highestScore.toString()) }
-                    StatTable(
-                        title = stringResource(R.string.stats_section_legs_checkout),
-                        columns = listOf(
-                            StatColumn(stringResource(R.string.stats_column_legs), 0.6f),
-                            StatColumn(stringResource(R.string.stats_checkouts), 0.9f),
-                            StatColumn(stringResource(R.string.stats_best_checkout), 0.8f),
-                        ),
-                        rows = detail.playerStats,
-                    ) { row ->
-                        listOf(
-                            row.legsWon.toString(),
-                            row.checkouts.toString(),
-                            if (row.highestCheckout > 0) row.highestCheckout.toString() else "—",
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.activity_detail_stats_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back),
                         )
                     }
-                } else {
-                    StatTable(
-                        title = stringResource(R.string.stats_section_marks_per_round),
-                        columns = listOf(StatColumn(stringResource(R.string.activity_stats_cricket_mpr), 1f)),
-                        rows = detail.playerStats,
-                    ) { row -> listOf("%.2f".format(row.marksPerRound)) }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = DS.s4, vertical = DS.s2),
+            verticalArrangement = Arrangement.spacedBy(DS.s4),
+        ) {
+            when {
+                uiState.loading -> {
+                    Box(
+                        Modifier.fillMaxWidth().padding(DS.s6),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(color = Brand.Green)
+                    }
                 }
-                StatTable(
-                    title = stringResource(R.string.stats_throws),
-                    columns = listOf(
-                        StatColumn(stringResource(R.string.stats_throws), 0.7f),
-                        StatColumn(stringResource(R.string.stats_double_percent), 0.8f),
-                        StatColumn(stringResource(R.string.stats_triple_percent), 0.8f),
-                    ),
-                    rows = detail.playerStats,
-                ) { row ->
-                    listOf(
-                        row.darts.toString(),
-                        "%.1f%%".format(row.doublePercent),
-                        "%.1f%%".format(row.triplePercent),
-                    )
+                uiState.loadFailed -> {
+                    ErrorBanner(stringResource(R.string.activity_detail_error))
+                    TextButton(onClick = { viewModel.load(matchId) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.activity_detail_retry), color = Brand.Green)
+                    }
                 }
-                detail.playerStats.filter { it.hitsBySector.isNotEmpty() }.forEach { row ->
-                    Text(row.name, fontWeight = FontWeight.SemiBold)
-                    SectorHitsChart(hitsBySector = row.hitsBySector, matchType = detail.matchType)
-                }
-                HistoryTimelineSection(detail.timeline)
-            }
+                uiState.detail != null -> {
+                    val detail = uiState.detail!!
+                    detail.resultRow?.let { row ->
+                        MatchHistoryCard(
+                            row = row,
+                            modifier = Modifier.a11yId(AccessibilityIds.HISTORY_DETAIL_RESULT_CARD),
+                        )
+                    }
 
-            when (detail.status) {
-                MatchStatus.InProgress -> {
-                    PrimaryActionButton(title = stringResource(R.string.activity_resume), onClick = { onResume(detail.matchType.name, detail.id) })
+                    if (detail.playerStats.isNotEmpty()) {
+                        if (detail.matchType == MatchType.X01) {
+                            StatTable(
+                                title = stringResource(R.string.stats_section_average_highest),
+                                columns = listOf(
+                                    StatColumn(stringResource(R.string.stats_three_dart_average), 0.9f),
+                                    StatColumn(stringResource(R.string.stats_highest_score), 0.8f),
+                                ),
+                                rows = detail.playerStats,
+                            ) { row -> listOf("%.1f".format(row.average3Dart), row.highestScore.toString()) }
+                            StatTable(
+                                title = stringResource(R.string.stats_section_legs_checkout),
+                                columns = listOf(
+                                    StatColumn(stringResource(R.string.stats_column_legs), 0.6f),
+                                    StatColumn(stringResource(R.string.stats_checkouts), 0.9f),
+                                    StatColumn(stringResource(R.string.stats_best_checkout), 0.8f),
+                                ),
+                                rows = detail.playerStats,
+                            ) { row ->
+                                listOf(
+                                    row.legsWon.toString(),
+                                    row.checkouts.toString(),
+                                    if (row.highestCheckout > 0) row.highestCheckout.toString() else "—",
+                                )
+                            }
+                        } else {
+                            StatTable(
+                                title = stringResource(R.string.stats_section_marks_per_round),
+                                columns = listOf(StatColumn(stringResource(R.string.activity_stats_cricket_mpr), 1f)),
+                                rows = detail.playerStats,
+                            ) { row -> listOf("%.2f".format(row.marksPerRound)) }
+                        }
+                        StatTable(
+                            title = stringResource(R.string.stats_points),
+                            columns = listOf(StatColumn(stringResource(R.string.stats_points), 0.9f)),
+                            rows = detail.playerStats,
+                        ) { row -> listOf(row.points.toString()) }
+                        StatTable(
+                            title = stringResource(R.string.stats_throws),
+                            columns = listOf(
+                                StatColumn(stringResource(R.string.stats_throws), 0.7f),
+                                StatColumn(stringResource(R.string.stats_double_percent), 0.8f),
+                                StatColumn(stringResource(R.string.stats_triple_percent), 0.8f),
+                            ),
+                            rows = detail.playerStats,
+                        ) { row ->
+                            listOf(
+                                row.darts.toString(),
+                                "%.1f%%".format(row.doublePercent),
+                                "%.1f%%".format(row.triplePercent),
+                            )
+                        }
+                        detail.playerStats.filter { it.hitsBySector.isNotEmpty() }.forEach { row ->
+                            Text(row.name, fontWeight = FontWeight.SemiBold)
+                            SectorHitsChart(hitsBySector = row.hitsBySector, matchType = detail.matchType)
+                        }
+                        HistoryTimelineSection(detail.timeline)
+                    }
+
+                    when (detail.status) {
+                        MatchStatus.InProgress -> {
+                            PrimaryActionButton(
+                                title = stringResource(R.string.activity_resume),
+                                onClick = { onResume(detail.matchType.name, detail.id) },
+                            )
+                        }
+                        MatchStatus.Completed, MatchStatus.Forfeited -> {
+                            PrimaryActionButton(
+                                title = stringResource(R.string.activity_view_summary),
+                                onClick = { onViewSummary(detail.id) },
+                            )
+                        }
+                        else -> Unit
+                    }
+                    TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.activity_detail_delete_match), color = Brand.Red)
+                    }
                 }
-                MatchStatus.Completed, MatchStatus.Forfeited -> {
-                    PrimaryActionButton(title = stringResource(R.string.activity_view_summary), onClick = { onViewSummary(detail.id) })
-                }
-                else -> Unit
-            }
-            TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.activity_detail_delete_match), color = Brand.Red)
-            }
             }
         }
     }
@@ -739,8 +822,8 @@ fun HistoryDetailScreen(
     if (showDeleteConfirm) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text(stringResource(R.string.activity_detail_delete_match)) },
-            text = { Text(stringResource(R.string.settings_resetConfirm)) },
+            title = { Text(stringResource(R.string.history_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.history_delete_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteMatch(matchId, onBack)
@@ -759,6 +842,10 @@ private fun HistoryTimelineSection(timeline: List<String>) {
     var expanded by remember { mutableStateOf(false) }
     val dark = isSystemInDarkTheme()
     val cardBg = if (dark) Brand.CardDark else Brand.CardLight
+    val timelineSectionLabel = stringResource(R.string.history_timeline_section)
+    val timelineState = stringResource(
+        if (expanded) R.string.history_timeline_expanded else R.string.history_timeline_collapsed,
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -769,7 +856,13 @@ private fun HistoryTimelineSection(timeline: List<String>) {
     ) {
         TextButton(
             onClick = { expanded = !expanded },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .a11yId(AccessibilityIds.HISTORY_DETAIL_TIMELINE_TOGGLE)
+                .semantics {
+                    contentDescription = timelineSectionLabel
+                    stateDescription = timelineState
+                },
         ) {
             Text(
                 stringResource(R.string.history_timeline_section),
@@ -814,12 +907,4 @@ private fun PartialMatchBanner() {
             fontWeight = FontWeight.SemiBold,
         )
     }
-}
-
-@Composable
-private fun statusLabel(status: MatchStatus): String = when (status) {
-    MatchStatus.Completed -> stringResource(R.string.activity_status_completed)
-    MatchStatus.InProgress -> stringResource(R.string.activity_status_inProgress)
-    MatchStatus.Forfeited -> stringResource(R.string.activity_status_forfeited)
-    else -> status.name
 }
