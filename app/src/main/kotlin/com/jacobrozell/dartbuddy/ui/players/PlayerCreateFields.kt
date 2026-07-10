@@ -18,7 +18,6 @@ import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
 import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
-import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
 
 @Composable
 fun PlayerCreateFields(
@@ -51,13 +50,14 @@ fun PlayerCreateFields(
         )
     }
     Spacer(Modifier.height(DS.s2))
-    AvatarStylePicker(selected = avatarStyle, onSelect = onAvatarStyleChange)
-    HorizontalOptionChips(
-        label = stringResource(R.string.players_edit_color),
-        options = PlayerColorToken.all.take(8),
+    AvatarStylePicker(
+        selected = avatarStyle,
+        onSelect = onAvatarStyleChange,
+        colorToken = colorToken,
+    )
+    PlayerColorTokenPicker(
         selected = colorToken,
         onSelect = onColorChange,
-        labelFor = { it.raw },
     )
     Text(
         stringResource(R.string.players_create_hint),

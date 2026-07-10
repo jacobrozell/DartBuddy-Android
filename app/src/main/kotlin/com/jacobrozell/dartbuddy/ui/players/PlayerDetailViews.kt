@@ -51,7 +51,6 @@ import com.jacobrozell.dartbuddy.ui.activity.SectorHitsChart
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
 import com.jacobrozell.dartbuddy.ui.designsystem.GameModeBadge
-import com.jacobrozell.dartbuddy.ui.designsystem.HorizontalOptionChips
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
 import com.jacobrozell.dartbuddy.ui.theme.Brand
@@ -93,7 +92,7 @@ fun PlayerIdentityCard(
         )
         if (player.isBot) {
             Text(
-                botBadgeText(player),
+                botBadgeText(player) ?: stringResource(R.string.players_bot_label),
                 color = Brand.ProBot,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.bodyMedium,
@@ -116,16 +115,6 @@ fun PlayerIdentityCard(
             )
         }
     }
-}
-
-@Composable
-private fun botBadgeText(player: PlayerSummary): String {
-    if (player.botKindRaw == BotKind.CUSTOM) {
-        return BotTurnCoordinator.customMetricsFor(player)?.let {
-            stringResource(R.string.custom_bot_badge_format, it.x01Average, it.cricketMPR)
-        } ?: stringResource(R.string.players_bot_label)
-    }
-    return stringResource(R.string.players_bot_label)
 }
 
 @Composable
@@ -508,14 +497,15 @@ fun PlayerEditSheet(
             modifier = Modifier.fillMaxWidth(),
         )
         if (showAvatarPicker) {
-            AvatarStylePicker(selected = avatarStyle, onSelect = onAvatarStyleChange)
+            AvatarStylePicker(
+                selected = avatarStyle,
+                onSelect = onAvatarStyleChange,
+                colorToken = PlayerColorToken.resolve(colorToken),
+            )
         }
-        HorizontalOptionChips(
-            label = stringResource(R.string.players_edit_color),
-            options = PlayerColorToken.all.take(8),
+        PlayerColorTokenPicker(
             selected = PlayerColorToken.resolve(colorToken),
             onSelect = { onColorChange(it.raw) },
-            labelFor = { it.raw },
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.players_primary))

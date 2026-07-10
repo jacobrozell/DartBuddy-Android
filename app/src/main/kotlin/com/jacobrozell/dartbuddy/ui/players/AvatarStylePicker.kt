@@ -24,8 +24,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.jacobrozell.dartbuddy.domain.model.PlayerAvatarStyle
+import com.jacobrozell.dartbuddy.domain.model.PlayerColorToken
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
-import com.jacobrozell.dartbuddy.ui.theme.Brand
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -34,6 +34,7 @@ fun AvatarStylePicker(
     onSelect: (PlayerAvatarStyle) -> Unit,
     modifier: Modifier = Modifier,
     showsTitle: Boolean = true,
+    colorToken: PlayerColorToken = PlayerColorToken.Green,
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(DS.s2)) {
         if (showsTitle) {
@@ -54,10 +55,13 @@ fun AvatarStylePicker(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) Brand.Green.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant)
+                        .background(
+                            if (isSelected) colorToken.color.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                        )
                         .border(
                             width = if (isSelected) 2.dp else 0.dp,
-                            color = if (isSelected) Brand.Green else Color.Transparent,
+                            color = if (isSelected) colorToken.color else Color.Transparent,
                             shape = CircleShape,
                         )
                         .clickable { onSelect(style) }
@@ -66,7 +70,7 @@ fun AvatarStylePicker(
                 ) {
                     com.jacobrozell.dartbuddy.ui.components.PlayerAvatar(
                         name = label,
-                        colorToken = com.jacobrozell.dartbuddy.domain.model.PlayerColorToken.Green.raw,
+                        colorToken = colorToken.raw,
                         playerId = style.raw,
                         size = 32.dp,
                         avatarStyleRaw = style.raw,
