@@ -15,6 +15,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -89,9 +91,13 @@ fun X01MatchScreen(
     val activeCard = cards.getOrNull(currentIndex)
     val inactiveCards = if (activeCard != null) cards.filterIndexed { index, _ -> index != currentIndex } else cards
     val pinsActive = usesPinnedActiveX01PlayerCard(layout)
+    val context = LocalContext.current
+    val view = LocalView.current
+    val legWonMessage = stringResource(R.string.play_x01_legWon_banner)
 
     LaunchedEffect(state.showLegWinBanner) {
         if (state.showLegWinBanner) {
+            view.announceForAccessibility(legWonMessage)
             delay(1_200)
             viewModel.dismissLegWinBanner()
         }

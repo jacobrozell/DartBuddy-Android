@@ -61,6 +61,7 @@ fun TabRootScaffold(
     modifier: Modifier = Modifier,
     forceBrandDarkBackground: Boolean = false,
     bottomBar: @Composable () -> Unit = {},
+    floatingActionButton: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
@@ -89,6 +90,13 @@ fun TabRootScaffold(
                 verticalArrangement = Arrangement.spacedBy(DS.s4),
                 content = content,
             )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = DS.s4, bottom = scrollBottom),
+            ) {
+                floatingActionButton()
+            }
         }
         bottomBar()
     }
@@ -272,6 +280,7 @@ fun <T> BrandSegmented(
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
     segmentAccessibilityLabel: (@Composable (T, String) -> String)? = null,
+    segmentTestTags: List<String>? = null,
 ) {
     val layout = rememberLayoutContext()
     val dark = isSystemInDarkTheme()
@@ -293,7 +302,7 @@ fun <T> BrandSegmented(
     container {
         when {
             useVertical -> {
-                options.forEach { (value, label) ->
+                options.forEachIndexed { index, (value, label) ->
                     SegmentButton(
                         label = label,
                         selected = value == selected,
@@ -301,6 +310,7 @@ fun <T> BrandSegmented(
                         expand = true,
                         onClick = { onSelect(value) },
                         accessibilityLabel = segmentAccessibilityLabel?.invoke(value, label),
+                        testTag = segmentTestTags?.getOrNull(index),
                     )
                 }
             }
@@ -310,7 +320,7 @@ fun <T> BrandSegmented(
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                 ) {
-                    options.forEach { (value, label) ->
+                    options.forEachIndexed { index, (value, label) ->
                         SegmentButton(
                             label = label,
                             selected = value == selected,
@@ -318,13 +328,14 @@ fun <T> BrandSegmented(
                             expand = false,
                             onClick = { onSelect(value) },
                             accessibilityLabel = segmentAccessibilityLabel?.invoke(value, label),
+                            testTag = segmentTestTags?.getOrNull(index),
                         )
                     }
                 }
             }
             else -> {
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    options.forEach { (value, label) ->
+                    options.forEachIndexed { index, (value, label) ->
                         SegmentButton(
                             label = label,
                             selected = value == selected,
@@ -333,6 +344,7 @@ fun <T> BrandSegmented(
                             onClick = { onSelect(value) },
                             modifier = Modifier.weight(1f),
                             accessibilityLabel = segmentAccessibilityLabel?.invoke(value, label),
+                            testTag = segmentTestTags?.getOrNull(index),
                         )
                     }
                 }
@@ -350,6 +362,7 @@ private fun SegmentButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     accessibilityLabel: String? = null,
+    testTag: String? = null,
 ) {
     Box(
         modifier = modifier
@@ -358,6 +371,7 @@ private fun SegmentButton(
             .clip(RoundedCornerShape(DS.radiusSm))
             .background(if (selected) selectedBg else Color.Transparent)
             .clickable(onClick = onClick)
+            .then(if (testTag != null) Modifier.a11yId(testTag) else Modifier)
             .then(
                 if (accessibilityLabel != null) {
                     Modifier.semantics { contentDescription = accessibilityLabel }

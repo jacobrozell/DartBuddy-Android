@@ -23,7 +23,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -129,7 +131,17 @@ fun MatchFeedbackBanner(
             modifier = Modifier
                 .fillMaxWidth()
                 .scale(if (style == MatchFeedbackBannerStyle.LegWin) scale else 1f)
-                .then(if (bannerTestTag != null) Modifier.a11yId(bannerTestTag) else Modifier),
+                .then(if (bannerTestTag != null) Modifier.a11yId(bannerTestTag) else Modifier)
+                .then(
+                    if (style == MatchFeedbackBannerStyle.LegWin) {
+                        Modifier.semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            contentDescription = message
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
             shape = RoundedCornerShape(10.dp),
             color = background,
         ) {

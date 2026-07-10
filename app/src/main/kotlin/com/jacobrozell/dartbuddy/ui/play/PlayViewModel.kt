@@ -72,6 +72,12 @@ data class PlayUiState(
     val availablePlayers: List<PlayerSummary>
         get() = players.filter { it.id !in selectedPlayerIds }
 
+    val availableHumans: List<PlayerSummary>
+        get() = availablePlayers.filter { !it.isBot }.sortedBy { it.name.lowercase() }
+
+    val availableBots: List<PlayerSummary>
+        get() = availablePlayers.filter { it.isBot }.sortedBy { it.name.lowercase() }
+
     val canStart: Boolean
         get() = selectedPlayerIds.isNotEmpty() &&
             !(setupMode == MatchType.Cricket && selectedPlayerIds.size < 2)

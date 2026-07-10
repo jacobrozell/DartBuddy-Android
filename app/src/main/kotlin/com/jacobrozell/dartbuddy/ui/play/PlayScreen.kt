@@ -83,6 +83,7 @@ import com.jacobrozell.dartbuddy.ui.components.ResumeBanner
 import com.jacobrozell.dartbuddy.ui.designsystem.rememberOptionLabelMaps
 import com.jacobrozell.dartbuddy.ui.designsystem.WideOrCompactSetup
 import com.jacobrozell.dartbuddy.ui.players.CustomBotCreationSheet
+import com.jacobrozell.dartbuddy.ui.players.botBadgeText
 import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
 import com.jacobrozell.dartbuddy.ui.play.rules.LearnToPlayButton
 import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
@@ -423,8 +424,24 @@ private fun RosterSection(state: PlayUiState, viewModel: PlayViewModel, onAddPla
 
         RosterActionButtons(onAddPlayer = onAddPlayer, onAddBot = onAddBot)
 
-        if (state.availablePlayers.isNotEmpty()) {
-            state.availablePlayers.forEach { player ->
+        if (state.availableBots.isNotEmpty()) {
+            Text(
+                stringResource(R.string.players_bots_section_title),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            state.availableBots.forEach { player ->
+                AvailablePlayerRow(player) { viewModel.togglePlayer(player.id) }
+            }
+        }
+
+        if (state.availableHumans.isNotEmpty()) {
+            Text(
+                stringResource(R.string.players_section_title),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            state.availableHumans.forEach { player ->
                 AvailablePlayerRow(player) { viewModel.togglePlayer(player.id) }
             }
         }
@@ -497,17 +514,13 @@ private fun TurnOrderRow(
         )
         Text(player.name, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         if (player.isBot) {
-            Text(
-                if (player.botKindRaw == "custom") {
-                    com.jacobrozell.dartbuddy.domain.bots.BotTurnCoordinator.customMetricsFor(player)?.let {
-                        stringResource(R.string.custom_bot_badge_format, it.x01Average, it.cricketMPR)
-                    } ?: stringResource(R.string.play_setup_botBadge)
-                } else {
-                    stringResource(R.string.play_setup_botBadge)
-                },
-                style = MaterialTheme.typography.labelSmall,
-                color = Brand.ProBot,
-            )
+            botBadgeText(player)?.let { badge ->
+                Text(
+                    badge,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Brand.ProBot,
+                )
+            }
         }
         if (canMoveUp) {
             IconButton(onClick = onMoveUp, modifier = Modifier.size(32.dp)) {
@@ -549,6 +562,15 @@ private fun AvailablePlayerRow(player: PlayerSummary, onAdd: () -> Unit) {
             size = 28.dp,
         )
         Text(player.name, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        if (player.isBot) {
+            botBadgeText(player)?.let { badge ->
+                Text(
+                    badge,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Brand.ProBot,
+                )
+            }
+        }
         Icon(Icons.Default.Add, contentDescription = null, tint = Brand.Green)
     }
 }
