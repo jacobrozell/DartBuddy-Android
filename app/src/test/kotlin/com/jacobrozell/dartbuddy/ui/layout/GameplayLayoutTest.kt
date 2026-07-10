@@ -58,9 +58,17 @@ class GameplayLayoutTest {
     }
 
     @Test
-    fun summaryLandscapeSplit_phoneLandscapeOnly() {
+    fun summaryLandscapeSplit_landscapeWhenNotAccessibility() {
         assertTrue(usesLandscapeMatchSummaryLayout(ctx(412, 915, 400)))
-        assertFalse(usesLandscapeMatchSummaryLayout(ctx(720, 1280, 800)))
+        assertTrue(usesLandscapeMatchSummaryLayout(ctx(720, 1280, 800)))
+        assertFalse(usesLandscapeMatchSummaryLayout(ctx(720, 800, 1200)))
+        assertFalse(usesLandscapeMatchSummaryLayout(ctx(412, 915, 400, fontScale = 1.5f)))
+    }
+
+    @Test
+    fun onboardingContentMaxWidth_tabletOnly() {
+        assertEquals(720, onboardingContentMaxWidth(ctx(720, 800, 1200)).value.toInt())
+        assertEquals(Dp.Unspecified, onboardingContentMaxWidth(ctx(412, 390, 844)))
     }
 
     @Test

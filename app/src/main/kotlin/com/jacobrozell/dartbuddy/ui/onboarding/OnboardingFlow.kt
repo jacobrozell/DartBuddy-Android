@@ -9,7 +9,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,6 +81,8 @@ import com.jacobrozell.dartbuddy.support.MotionPreferences
 import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
 import com.jacobrozell.dartbuddy.support.accessibility.a11yId
 import com.jacobrozell.dartbuddy.ui.layout.formImeInsets
+import com.jacobrozell.dartbuddy.ui.layout.onboardingContentMaxWidth
+import com.jacobrozell.dartbuddy.ui.layout.rememberLayoutContext
 import com.jacobrozell.dartbuddy.ui.layout.stickyFooterInsets
 import com.jacobrozell.dartbuddy.ui.components.PlayerAvatar
 import com.jacobrozell.dartbuddy.ui.designsystem.DS
@@ -87,6 +91,7 @@ import com.jacobrozell.dartbuddy.ui.designsystem.rememberOptionLabelMaps
 import com.jacobrozell.dartbuddy.ui.designsystem.PrimaryActionButton
 import com.jacobrozell.dartbuddy.ui.designsystem.SetupSectionCard
 import com.jacobrozell.dartbuddy.ui.players.AvatarStylePicker
+import com.jacobrozell.dartbuddy.ui.players.PlayerColorTokenPicker
 import com.jacobrozell.dartbuddy.ui.players.BotDifficultyStatsSection
 import com.jacobrozell.dartbuddy.ui.players.displayNameComposable
 import com.jacobrozell.dartbuddy.ui.play.rules.GameRulesGuideContent
@@ -106,6 +111,16 @@ fun OnboardingFlow(
     val context = LocalContext.current
     val reduceMotion = MotionPreferences.prefersReducedMotion(context)
     var lastStepIndex by remember { mutableStateOf(onboardingStepIndex(state.step)) }
+
+    BackHandler {
+        when {
+            mode == OnboardingMode.Replay && state.step == OnboardingStep.Welcome -> onFinished()
+            state.step.backStep(
+                showsRulesIntro = state.rosterDraft?.botDifficulty?.showsOnboardingRulesIntro,
+                skipsRosterSetup = state.skipsRosterSetup,
+            ) != null -> viewModel.goBack()
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = background) {
         AnimatedContent(
@@ -155,7 +170,12 @@ fun OnboardingFlow(
                 )
                 OnboardingStep.Ready -> OnboardingReadyStep(
                     progressIndex = step.progressIndex!!,
-                    rosterDraft = if (!state.skippedFromWelcome) state.rosterDraft else null,
+                    mode = state.mode,
+                    rosterDraft = if (state.mode == OnboardingMode.FirstLaunch && !state.skippedFromWelcome) {
+                        state.rosterDraft
+                    } else {
+                        null
+                    },
                     showsBack = step.backStep(
                         showsRulesIntro = state.rosterDraft?.botDifficulty?.showsOnboardingRulesIntro,
                         skipsRosterSetup = state.skipsRosterSetup,
@@ -182,6 +202,8 @@ private fun OnboardingStepScaffold(
 ) {
     val dark = isSystemInDarkTheme()
     val background = if (dark) Brand.BackgroundDark else Brand.BackgroundLight
+    val layout = rememberLayoutContext()
+    val readableMax = onboardingContentMaxWidth(layout)
 
     Scaffold(
         containerColor = background,
@@ -225,16 +247,23 @@ private fun OnboardingStepScaffold(
             }
         },
     ) { padding ->
-        Column(
+        Box(
             Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .formImeInsets()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = DS.s4),
-            verticalArrangement = Arrangement.spacedBy(DS.s4),
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            content()
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .widthIn(max = readableMax)
+                    .formImeInsets()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = DS.s4),
+                verticalArrangement = Arrangement.spacedBy(DS.s4),
+            ) {
+                content()
+            }
         }
     }
 }
@@ -294,25 +323,36 @@ private fun OnboardingRosterStep(
         )
         SetupSectionCard {
             Text(stringResource(R.string.onboarding_roster_you_section), fontWeight = FontWeight.SemiBold)
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(stringResource(R.string.onboarding_roster_name)) },
-                modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.ONBOARDING_PLAYER_NAME),
-            )
-        }
-        SetupSectionCard {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(DS.s3),
+            ) {
+                PlayerAvatar(
+                    name = name.ifBlank { "?" },
+                    colorToken = colorToken.raw,
+                    playerId = "onboarding-player",
+                    avatarStyleRaw = avatarStyle.raw,
+                    size = 48.dp,
+                )
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.onboarding_roster_name)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .a11yId(AccessibilityIds.ONBOARDING_PLAYER_NAME),
+                )
+            }
             AvatarStylePicker(
                 selected = avatarStyle,
                 onSelect = { avatarStyle = it },
+                colorToken = colorToken,
                 showsTitle = true,
             )
-            HorizontalOptionChips(
-                label = stringResource(R.string.onboarding_roster_color),
-                options = PlayerColorToken.all.take(8),
+            PlayerColorTokenPicker(
                 selected = colorToken,
                 onSelect = { colorToken = it },
-                labelFor = { it.raw },
             )
         }
         SetupSectionCard {
@@ -607,6 +647,7 @@ private fun SupportLink(title: String, accessibilityLabel: String, onClick: () -
 @Composable
 private fun OnboardingReadyStep(
     progressIndex: Int,
+    mode: OnboardingMode,
     rosterDraft: OnboardingRosterDraft?,
     showsBack: Boolean,
     onBack: () -> Unit,
@@ -622,13 +663,18 @@ private fun OnboardingReadyStep(
                 title = stringResource(R.string.onboarding_start_match),
                 onClick = onGetStarted,
                 enabled = !isFinishing,
+                testTag = AccessibilityIds.ONBOARDING_GET_STARTED,
             )
         },
     ) {
         OnboardingHero(
             title = stringResource(R.string.onboarding_ready_title),
             body = stringResource(
-                if (rosterDraft != null) R.string.onboarding_ready_body_with_roster else R.string.onboarding_ready_body,
+                when {
+                    rosterDraft != null -> R.string.onboarding_ready_body_with_roster
+                    mode == OnboardingMode.Replay -> R.string.onboarding_ready_body_replay
+                    else -> R.string.onboarding_ready_body
+                },
             ),
         )
         rosterDraft?.let { draft ->

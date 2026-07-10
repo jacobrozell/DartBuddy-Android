@@ -13,6 +13,7 @@ object GameplayLayoutMetrics {
     val tabletLandscapeScoringPadWidth = 300.dp
     val tabletPortraitScoringPadWidth = 420.dp
     val tabletContentMaxWidth = 920.dp
+    val onboardingContentMaxWidth = 720.dp
     val setupWideBreakpoint = 600.dp
     val wideTabletBreakpoint = 840.dp
     val compactWidthBreakpoint = 360.dp
@@ -98,7 +99,10 @@ fun usesIPadPortraitTwoPlayerScoreRow(ctx: LayoutContext, playerCount: Int): Boo
     usesTabletPortraitMatchScoringLayout(ctx) && playerCount == 2
 
 fun usesLandscapeMatchSummaryLayout(ctx: LayoutContext): Boolean =
-    !usesAccessibilityMatchScoringLayout(ctx) && ctx.isLandscape && !ctx.isTablet
+    !usesAccessibilityMatchScoringLayout(ctx) && ctx.isLandscape
+
+fun onboardingContentMaxWidth(ctx: LayoutContext): Dp =
+    if (ctx.isTablet) GameplayLayoutMetrics.onboardingContentMaxWidth else Dp.Unspecified
 
 fun usesMatchSummarySideBySidePlayerGrid(ctx: LayoutContext, playerCount: Int): Boolean {
     if (playerCount < 2) return false

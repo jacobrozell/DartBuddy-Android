@@ -97,12 +97,17 @@ fun MatchSummaryScreen(
             .padding(DS.s4),
     ) {
         if (usesSplit) {
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(DS.s3)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .widthIn(max = readableMax)
+                    .align(Alignment.TopCenter),
+                verticalArrangement = Arrangement.spacedBy(DS.s3),
+            ) {
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .widthIn(max = readableMax),
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(DS.s4),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -243,16 +248,36 @@ private fun SummaryPlayerCards(
 ) {
     if (state.playerStats.isEmpty()) return
     if (usesGrid && state.playerStats.size >= 2) {
-        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(DS.s3)) {
-            state.playerStats.forEach { row ->
-                SummaryPlayerCard(
-                    row = row,
-                    matchType = state.matchType,
-                    isWinner = row.name == state.winnerName,
-                    setsEnabled = state.setsEnabled,
-                    dark = dark,
-                    modifier = Modifier.weight(1f),
-                )
+        if (state.playerStats.size > 2) {
+            FlowRow(
+                modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(DS.s3),
+                verticalArrangement = Arrangement.spacedBy(DS.s3),
+                maxItemsInEachRow = 2,
+            ) {
+                state.playerStats.forEach { row ->
+                    SummaryPlayerCard(
+                        row = row,
+                        matchType = state.matchType,
+                        isWinner = row.name == state.winnerName,
+                        setsEnabled = state.setsEnabled,
+                        dark = dark,
+                        modifier = Modifier.fillMaxWidth(0.48f),
+                    )
+                }
+            }
+        } else {
+            Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(DS.s3)) {
+                state.playerStats.forEach { row ->
+                    SummaryPlayerCard(
+                        row = row,
+                        matchType = state.matchType,
+                        isWinner = row.name == state.winnerName,
+                        setsEnabled = state.setsEnabled,
+                        dark = dark,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     } else {
