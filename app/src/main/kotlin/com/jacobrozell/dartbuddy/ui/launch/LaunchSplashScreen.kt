@@ -15,12 +15,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,9 +49,11 @@ import kotlinx.coroutines.delay
 @Composable
 fun LaunchSplashScreen(
     visible: Boolean,
+    darkTheme: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val backdropRes = if (darkTheme) R.drawable.splash_backdrop_dark else R.drawable.splash_backdrop_light
     val reduceMotion = MotionPreferences.prefersReducedMotion(context)
     var footerAppeared by remember { mutableStateOf(reduceMotion) }
 
@@ -84,8 +83,13 @@ fun LaunchSplashScreen(
             }
             .a11yId(AccessibilityIds.LAUNCH_SPLASH),
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (darkTheme) Brand.SplashCanvasDark else Brand.SplashCanvasLight),
+        )
         Image(
-            painter = painterResource(R.drawable.splash_backdrop),
+            painter = painterResource(backdropRes),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
@@ -99,6 +103,7 @@ fun LaunchSplashScreen(
         ) {
             Spacer(Modifier.weight(1f))
             LaunchSplashWordmark(
+                darkTheme = darkTheme,
                 modifier = Modifier.alpha(if (footerAppeared) 1f else 0f),
             )
             LaunchDotsIndicator(
@@ -112,13 +117,16 @@ fun LaunchSplashScreen(
 }
 
 @Composable
-private fun LaunchSplashWordmark(modifier: Modifier = Modifier) {
+private fun LaunchSplashWordmark(
+    darkTheme: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = stringResource(R.string.brand_title),
         modifier = modifier,
         fontSize = 34.sp,
         fontWeight = FontWeight.Black,
-        color = MaterialTheme.colorScheme.onBackground,
+        color = if (darkTheme) Brand.TextPrimaryDark else Brand.TextPrimaryLight,
         letterSpacing = 0.6.sp,
     )
 }

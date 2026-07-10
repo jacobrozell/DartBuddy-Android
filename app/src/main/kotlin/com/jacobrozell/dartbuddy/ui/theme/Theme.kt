@@ -26,6 +26,8 @@ object Brand {
 
     val TextPrimaryLight = Color(0xFF141419)
     val TextPrimaryDark = Color.White
+    val SplashCanvasLight = Color(0xFFF2F0EB)
+    val SplashCanvasDark = Color(0xFF0D0F17)
     val TextSecondaryLight = Color(0xFF595961)
     val TextSecondaryDark = Color(0x8FFFFFFF)
     val InkOnBright = Color(0xFF141419)

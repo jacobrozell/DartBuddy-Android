@@ -180,7 +180,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
-                    LaunchSplashScreen(visible = showLaunchSplash)
+                    LaunchSplashScreen(visible = showLaunchSplash, darkTheme = darkTheme)
                 }
             }
         }
