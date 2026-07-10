@@ -51,6 +51,7 @@ import com.jacobrozell.dartbuddy.ui.play.summary.MatchSummaryScreen
 import com.jacobrozell.dartbuddy.ui.players.PlayerDetailScreen
 import com.jacobrozell.dartbuddy.ui.players.PlayersScreen
 import com.jacobrozell.dartbuddy.ui.settings.SettingsScreen
+import com.jacobrozell.dartbuddy.ui.settings.FeedbackFormScreen
 import com.jacobrozell.dartbuddy.support.accessibility.AccessibilityIds
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -324,8 +325,13 @@ fun DartBuddyNavHost(
             }
             composable(RootTab.Settings.route) {
                 TabContentReveal {
-                    SettingsScreen()
+                    SettingsScreen(
+                        onOpenFeedback = { navController.navigate("settings/feedback") },
+                    )
                 }
+            }
+            composable("settings/feedback") {
+                FeedbackFormScreen(onBack = { navController.popBackStack() })
             }
             composable("match/x01/{matchId}") { entry ->
                 X01MatchScreen(
