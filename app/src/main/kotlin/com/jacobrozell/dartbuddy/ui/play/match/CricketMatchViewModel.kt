@@ -55,6 +55,7 @@ data class CricketMatchUiState(
     val participantIsBot: Map<String, Boolean> = emptyMap(),
     val botStaggerEnabled: Boolean = true,
     val botDartHapticsEnabled: Boolean = true,
+    val instantBotTurnsEnabled: Boolean = false,
 )
 
 @HiltViewModel
@@ -94,6 +95,7 @@ class CricketMatchViewModel @Inject constructor(
                 turnTotalCallerEnabled = settings.turnTotalCallerEnabled,
                 botStaggerEnabled = settings.botStaggerEnabled,
                 botDartHapticsEnabled = settings.botDartHapticsEnabled,
+                instantBotTurnsEnabled = settings.instantBotTurnsEnabled,
             )
             logger.info(
                 LogCategory.UI,
@@ -273,7 +275,9 @@ class CricketMatchViewModel @Inject constructor(
                 val profile = playerRepository.resolveBotSkillProfile(playerId, MatchType.Cricket) ?: return@launch
 
                 _uiState.update { it.copy(isBotTurnActive = true) }
-                BotTurnCoordinator.thinkDelay()
+                if (!state.instantBotTurnsEnabled) {
+                    BotTurnCoordinator.thinkDelay()
+                }
 
                 val darts = DartBotEngine.generateCricketTurn(
                     state = session.state,
@@ -281,7 +285,7 @@ class CricketMatchViewModel @Inject constructor(
                     profile = profile,
                 )
 
-                if (state.botStaggerEnabled) {
+                if (state.botStaggerEnabled && !state.instantBotTurnsEnabled) {
                     BotTurnCoordinator.playStaggeredDarts(
                         darts = darts,
                         soundEnabled = state.soundEnabled,

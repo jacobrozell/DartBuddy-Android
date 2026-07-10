@@ -56,4 +56,5 @@ data class SettingsEntity(
     val turnTotalCallerEnabled: Boolean = false,
     val botStaggerEnabled: Boolean = true,
     val botDartHapticsEnabled: Boolean = true,
+    val instantBotTurnsEnabled: Boolean = false,
 )

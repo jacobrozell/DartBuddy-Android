@@ -6,10 +6,19 @@ object AccessibilityIds {
     const val TAB_ACTIVITY = "tab_activity"
     const val TAB_SETTINGS = "tab_settings"
 
+    const val ACTIVITY_SEGMENT_HISTORY = "activity_segment_history"
+    const val ACTIVITY_SEGMENT_STATISTICS = "activity_segment_statistics"
+    const val ACTIVITY_MODE_FILTER_MENU = "activityModeFilterMenu"
+    const val ACTIVITY_PLAYER_FILTER_MENU = "activityPlayerFilterMenu"
+    const val HISTORY_DETAIL_RESULT_CARD = "historyDetailResultCard"
+    const val HISTORY_DETAIL_TIMELINE_TOGGLE = "historyDetailTimelineToggle"
+
     const val LAUNCH_SPLASH = "launch_splash"
 
     const val ONBOARDING_PLAYER_NAME = "onboarding_player_name"
+    const val ONBOARDING_GET_STARTED = "onboarding_get_started"
     const val PLAYERS_SEARCH = "players_searchField"
+    const val PLAYERS_ADD_FAB = "players_addFab"
     const val PLAYERS_EMPTY = "players_empty"
     const val PLAYERS_SEARCH_EMPTY = "players_search_empty"
     const val EMPTY_STATE_START_MATCH = "emptyStateStartMatchButton"
@@ -47,6 +56,14 @@ object AccessibilityIds {
     const val SETTINGS_TURN_CALLER = "settings_turnTotalCallerToggle"
     const val SETTINGS_BOT_STAGGER = "settings_botStaggerToggle"
     const val SETTINGS_BOT_HAPTICS = "settings_botDartHapticsToggle"
+    const val SETTINGS_INSTANT_BOT_TURNS = "settings_instantBotTurnsToggle"
+
+    const val FEEDBACK_SPECIFIC_ITEM = "feedback.specificItem"
+    const val FEEDBACK_SUMMARY = "feedback.summary"
+    const val FEEDBACK_DETAILS = "feedback.details"
+    const val FEEDBACK_SEND = "feedback.send"
+
+    const val PLAYERS_LOADING = "players_loading"
     const val SETTINGS_RESET_ALL = "settings_resetAllDataButton"
     const val SETTINGS_REPLAY_ONBOARDING = "settings_viewOnboardingButton"
     const val SETTINGS_RATE_APP = "settings_rateAppLink"

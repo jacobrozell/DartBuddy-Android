@@ -25,6 +25,7 @@ object AnalyticsUserContext {
             values["turn_caller_enabled"] = boolString(it.turnTotalCallerEnabled)
             values["bot_stagger_enabled"] = boolString(it.botStaggerEnabled)
             values["bot_dart_haptics_enabled"] = boolString(it.botDartHapticsEnabled)
+            values["instant_bot_turns_enabled"] = boolString(it.instantBotTurnsEnabled)
             values["default_match_type"] = it.defaultMatchType.name.lowercase()
         }
         return values

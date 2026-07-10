@@ -160,7 +160,10 @@ class SettingsViewModel @Inject constructor(
 }
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onOpenFeedback: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val loadState by viewModel.loadState.collectAsStateWithLifecycle()
     var showResetConfirm by remember { mutableStateOf(false) }
@@ -191,6 +194,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 onShowRules = { showRulesSheet = true },
                 onShowReplayConfirm = { showReplayConfirm = true },
                 onShowResetConfirm = { showResetConfirm = true },
+                onOpenFeedback = onOpenFeedback,
                 context = context,
             )
         }
@@ -292,12 +296,14 @@ private fun SettingsFormContent(
     onShowRules: () -> Unit,
     onShowReplayConfirm: () -> Unit,
     onShowResetConfirm: () -> Unit,
+    onOpenFeedback: () -> Unit,
     context: Context,
 ) {
     val rateA11yLabel = stringResource(R.string.settings_support_rate_a11y)
     val faqA11yLabel = stringResource(R.string.settings_support_faq_a11y)
     val feedbackA11yLabel = stringResource(R.string.settings_support_feedback_a11y)
     val privacyA11yLabel = stringResource(R.string.settings_support_privacy_a11y)
+    val replayOnboardingA11yLabel = stringResource(R.string.settings_replay_onboarding_a11y)
     val accessibilityA11yLabel = stringResource(R.string.settings_support_accessibility_a11y)
     val resetA11yLabel = stringResource(R.string.settings_reset_accessibility)
     Column(Modifier.a11yId(AccessibilityIds.SETTINGS_FORM)) {
@@ -395,25 +401,7 @@ private fun SettingsFormContent(
             )
         }
 
-        Text(stringResource(R.string.settings_bots), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-        SetupSectionCard {
-            ToggleSetting(
-                label = stringResource(R.string.settings_bot_stagger),
-                checked = settings.botStaggerEnabled,
-                testTag = AccessibilityIds.SETTINGS_BOT_STAGGER,
-                onCheckedChange = { viewModel.update { s -> s.copy(botStaggerEnabled = it) } },
-            )
-            ToggleSetting(
-                label = stringResource(R.string.settings_bot_haptics),
-                checked = settings.botDartHapticsEnabled,
-                enabled = settings.hapticsEnabled,
-                testTag = AccessibilityIds.SETTINGS_BOT_HAPTICS,
-                onCheckedChange = { viewModel.update { s -> s.copy(botDartHapticsEnabled = it) } },
-            )
-        }
-        SettingsSectionFooter(stringResource(R.string.settings_bots_footer))
-
-        Text(stringResource(R.string.settings_feedback), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_during_play), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
             ToggleSetting(
                 label = stringResource(R.string.settings_haptics),
@@ -437,8 +425,42 @@ private fun SettingsFormContent(
             if (!settings.soundEnabled) {
                 SettingsSectionFooter(stringResource(R.string.settings_turn_caller_footer))
             }
+            ToggleSetting(
+                label = stringResource(R.string.settings_instant_bot_turns),
+                checked = settings.instantBotTurnsEnabled,
+                testTag = AccessibilityIds.SETTINGS_INSTANT_BOT_TURNS,
+                onCheckedChange = { viewModel.update { s -> s.copy(instantBotTurnsEnabled = it) } },
+            )
+            SettingsSectionFooter(stringResource(R.string.settings_instant_bot_turns_hint))
         }
-        SettingsSectionFooter(stringResource(R.string.settings_feedback_footer))
+        SettingsSectionFooter(stringResource(R.string.settings_during_play_footer))
+
+        Text(stringResource(R.string.settings_bots), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        SetupSectionCard {
+            ToggleSetting(
+                label = stringResource(R.string.settings_bot_stagger),
+                checked = settings.botStaggerEnabled,
+                enabled = !settings.instantBotTurnsEnabled,
+                testTag = AccessibilityIds.SETTINGS_BOT_STAGGER,
+                onCheckedChange = { viewModel.update { s -> s.copy(botStaggerEnabled = it) } },
+            )
+            ToggleSetting(
+                label = stringResource(R.string.settings_bot_haptics),
+                checked = settings.botDartHapticsEnabled,
+                enabled = settings.hapticsEnabled && !settings.instantBotTurnsEnabled,
+                testTag = AccessibilityIds.SETTINGS_BOT_HAPTICS,
+                onCheckedChange = { viewModel.update { s -> s.copy(botDartHapticsEnabled = it) } },
+            )
+        }
+        SettingsSectionFooter(
+            stringResource(
+                if (settings.instantBotTurnsEnabled) {
+                    R.string.settings_bots_instant_footer
+                } else {
+                    R.string.settings_bots_footer
+                },
+            ),
+        )
 
         Text(stringResource(R.string.settings_help), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
         SetupSectionCard {
@@ -452,7 +474,7 @@ private fun SettingsFormContent(
                 Text(stringResource(R.string.onboarding_support_help), color = Brand.Green)
             }
             TextButton(
-                onClick = { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${com.jacobrozell.dartbuddy.support.AppLinks.FEEDBACK_EMAIL}"))) },
+                onClick = onOpenFeedback,
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = feedbackA11yLabel },
             ) {
                 Text(stringResource(R.string.onboarding_support_feedback), color = Brand.Green)
@@ -484,7 +506,10 @@ private fun SettingsFormContent(
             }
             TextButton(
                 onClick = onShowReplayConfirm,
-                modifier = Modifier.fillMaxWidth().a11yId(AccessibilityIds.SETTINGS_REPLAY_ONBOARDING),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .a11yId(AccessibilityIds.SETTINGS_REPLAY_ONBOARDING)
+                    .semantics { contentDescription = replayOnboardingA11yLabel },
             ) {
                 Text(stringResource(R.string.settings_replay_onboarding), color = Brand.Green)
             }

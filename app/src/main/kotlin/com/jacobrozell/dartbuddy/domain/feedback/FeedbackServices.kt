@@ -104,24 +104,32 @@ class FeedbackServices @Inject constructor(
     }
 
     private fun vibrateOneShot(ms: Long, amplitude: Int = VibrationEffect.DEFAULT_AMPLITUDE) {
-        vibrator?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                it.vibrate(VibrationEffect.createOneShot(ms, amplitude))
-            } else {
-                @Suppress("DEPRECATION")
-                it.vibrate(ms)
+        try {
+            vibrator?.let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    it.vibrate(VibrationEffect.createOneShot(ms, amplitude))
+                } else {
+                    @Suppress("DEPRECATION")
+                    it.vibrate(ms)
+                }
             }
+        } catch (_: SecurityException) {
+            // Missing VIBRATE permission on some devices — haptics are optional.
         }
     }
 
     private fun vibrateWaveform(pattern: LongArray) {
-        vibrator?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                it.vibrate(VibrationEffect.createWaveform(pattern, -1))
-            } else {
-                @Suppress("DEPRECATION")
-                it.vibrate(pattern, -1)
+        try {
+            vibrator?.let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    it.vibrate(VibrationEffect.createWaveform(pattern, -1))
+                } else {
+                    @Suppress("DEPRECATION")
+                    it.vibrate(pattern, -1)
+                }
             }
+        } catch (_: SecurityException) {
+            // Missing VIBRATE permission on some devices — haptics are optional.
         }
     }
 }

@@ -11,7 +11,7 @@ import com.jacobrozell.dartbuddy.data.local.entity.SettingsEntity
 
 @Database(
     entities = [PlayerEntity::class, MatchEntity::class, SettingsEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class DartBuddyDatabase : RoomDatabase() {

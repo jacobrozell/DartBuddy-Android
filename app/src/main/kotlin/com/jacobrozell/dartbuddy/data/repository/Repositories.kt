@@ -88,6 +88,7 @@ data class AppSettings(
     val defaultCricketScoringMode: CricketScoringMode = CricketScoringMode.Standard,
     val botStaggerEnabled: Boolean = true,
     val botDartHapticsEnabled: Boolean = true,
+    val instantBotTurnsEnabled: Boolean = false,
 )
 
 @Singleton
@@ -347,7 +348,10 @@ class MatchRepository @Inject constructor(
     fun observeHistoryRows(): Flow<List<HistoryListRow>> =
         matchDao.observeAll().map { list ->
             list
-                .filter { it.status != MatchStatus.InProgress.name }
+                .filter {
+                    it.status != MatchStatus.InProgress.name &&
+                        it.status != MatchStatus.Abandoned.name
+                }
                 .map { MatchHistoryCardBuilder.build(it, json, l10n) }
         }
 
@@ -434,6 +438,7 @@ class SettingsRepository @Inject constructor(
             .getOrDefault(CricketScoringMode.Standard),
         botStaggerEnabled = botStaggerEnabled,
         botDartHapticsEnabled = botDartHapticsEnabled,
+        instantBotTurnsEnabled = instantBotTurnsEnabled,
     )
 
     private fun AppSettings.toEntity() = SettingsEntity(
@@ -453,6 +458,7 @@ class SettingsRepository @Inject constructor(
         defaultCricketScoringMode = defaultCricketScoringMode.name,
         botStaggerEnabled = botStaggerEnabled,
         botDartHapticsEnabled = botDartHapticsEnabled,
+        instantBotTurnsEnabled = instantBotTurnsEnabled,
     )
 }
 

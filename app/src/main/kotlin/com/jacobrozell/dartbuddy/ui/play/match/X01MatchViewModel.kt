@@ -77,6 +77,7 @@ data class X01MatchUiState(
     val participantIsBot: Map<String, Boolean> = emptyMap(),
     val botStaggerEnabled: Boolean = true,
     val botDartHapticsEnabled: Boolean = true,
+    val instantBotTurnsEnabled: Boolean = false,
 )
 
 @HiltViewModel
@@ -120,6 +121,7 @@ class X01MatchViewModel @Inject constructor(
                 turnTotalCallerEnabled = settings.turnTotalCallerEnabled,
                 botStaggerEnabled = settings.botStaggerEnabled,
                 botDartHapticsEnabled = settings.botDartHapticsEnabled,
+                instantBotTurnsEnabled = settings.instantBotTurnsEnabled,
                 configSummary = buildConfigSummary(session),
             )
             logger.info(
@@ -408,7 +410,9 @@ class X01MatchViewModel @Inject constructor(
                 val profile = playerRepository.resolveBotSkillProfile(playerId, MatchType.X01) ?: return@launch
 
                 _uiState.update { it.copy(isBotTurnActive = true) }
-                BotTurnCoordinator.thinkDelay()
+                if (!state.instantBotTurnsEnabled) {
+                    BotTurnCoordinator.thinkDelay()
+                }
 
                 val x01Player = session.state.players[playerIndex]
                 val darts = DartBotEngine.generateX01Turn(
@@ -419,7 +423,7 @@ class X01MatchViewModel @Inject constructor(
                     isCheckedIn = x01Player.isCheckedIn,
                 )
 
-                if (state.botStaggerEnabled) {
+                if (state.botStaggerEnabled && !state.instantBotTurnsEnabled) {
                     BotTurnCoordinator.playStaggeredDarts(
                         darts = darts,
                         soundEnabled = state.soundEnabled,
