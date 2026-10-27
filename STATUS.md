@@ -155,12 +155,9 @@ Deep link host: `dartbuddy://v1/<path>` → tab routes (`play`, `players`, `acti
 ./gradlew assembleDebug test
 ```
 
-### Android Studio MCP (Cursor)
+### Verify
 
-1. Install [MCP Server plugin](https://plugins.jetbrains.com/plugin/26071-mcp-server) in Android Studio.
-2. Open this repo, keep Studio running.
-3. Cursor MCP config: `jetbrains` via `@jetbrains/mcp-proxy` (see [`README.md`](README.md)).
-4. Use `build_project` with `projectPath` set to this repo root after edits.
+UI changes use the `android-verify` skill. Commands are in [`AGENTS.md`](AGENTS.md).
 
 ### Manual smoke checklist
 

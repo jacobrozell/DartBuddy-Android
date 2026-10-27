@@ -29,30 +29,9 @@ Kotlin + Jetpack Compose port of **Dart Buddy iOS 1.0.0 lean** (X01 + Cricket, p
 1. **File → Open** → select this repo root (`DartBuddy-Android/`)
 2. Sync Gradle, run on an **Android 13+** emulator or device
 
-## Cursor ↔ Android Studio (MCP)
+## Verify
 
-Connect Cursor chat to Android Studio via the [JetBrains MCP Server plugin](https://plugins.jetbrains.com/plugin/26071-mcp-server) ([setup guide](https://github.com/muxi1998/android-studio-mcp-server)).
-
-### Android Studio (one-time)
-
-1. **Settings → Plugins → Marketplace** → search **MCP Server** (plugin ID 26071) → **Install**
-2. Restart Android Studio
-3. Open this repo and leave Android Studio running
-
-### Cursor
-
-`jetbrains` is configured in `.cursor/mcp.json`:
-
-```json
-"jetbrains": {
-  "command": "npx",
-  "args": ["-y", "@jetbrains/mcp-proxy"]
-}
-```
-
-Reload Cursor MCP after editing. Use **`build_project`** with `projectPath` set to this repo root to validate edits.
-
-**Multiple JetBrains IDEs:** set `IDE_PORT` in the `env` block to Android Studio’s built-in webserver port.
+UI changes use the `android-verify` skill. Package id and test commands are in [`AGENTS.md`](AGENTS.md).
 
 ## Build from CLI
 

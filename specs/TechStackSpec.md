@@ -47,8 +47,8 @@ CI: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — Ubuntu, JDK 17
 ## 5. IDE and agent tooling
 
 - **Android Studio** — open repo root (not a parent monorepo path).
-- **Cursor + JetBrains MCP** — `build_project` with `projectPath` = repo root.
-- **Emulator** — Android 13+ (API 33+) system image; workspace `android-emulator` MCP optional.
+- **Cursor** — `android-verify` skill for UI. Commands in `AGENTS.md`.
+- **Emulator** — one booted phone AVD, API 33+.
 
 ---
 

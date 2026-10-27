@@ -376,6 +376,6 @@ Adaptive layout (`LayoutContext`, edge-to-edge, cricket transposed board) · Bot
 
 **10 instrumented tests** — in-memory Room repository contracts plus Compose UI smoke (main tabs + settings onboarding replay).
 
-**Android Studio MCP:** `build_project` with `projectPath` set to this repo root — see [`README.md`](README.md).
+**Verify:** `android-verify` skill. Commands in [`AGENTS.md`](AGENTS.md).
 
 **Note:** Prior versions of this file incorrectly listed Activity Statistics and custom bots as out of scope. Both are **in** iOS lean 1.0 on `master`.
