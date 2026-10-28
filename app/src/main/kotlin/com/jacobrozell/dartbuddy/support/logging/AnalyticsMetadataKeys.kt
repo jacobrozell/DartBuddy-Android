@@ -96,6 +96,12 @@ object AnalyticsMetadataKeys {
         "intentName",
         "tab",
         "forfeited",
+        "detectedScore",
+        "correctedScore",
+        "visionConfidence",
+        "visionExact",
+        "visionChanged",
+        "visionDismissed",
     )
 
     val firebaseParameters: Set<String> = generalFirebase

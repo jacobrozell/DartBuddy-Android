@@ -37,6 +37,7 @@ object FirebaseAnalyticsEventMapping {
         "intent_failed",
         "client_environment_changed",
         "onboarding_completed",
+        "vision_detection_outcome",
     )
 
     private val firebaseNameOverrides = mapOf(
