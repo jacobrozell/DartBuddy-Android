@@ -4,11 +4,13 @@ Kotlin + Jetpack Compose port of **Dart Buddy iOS 1.0.0 lean** (X01 + Cricket, p
 
 > **Current state:** [`STATUS.md`](STATUS.md) · **Feature matrix:** [`PARITY.md`](PARITY.md) · **Releases:** [`docs/releases/README.md`](docs/releases/README.md)
 
-## Status (2026-06-23)
+## Status (2026-10-28)
 
-**Lean 1.0 is feature-complete for core gameplay** (~85% parity intent). End-to-end: onboarding → play setup → X01/Cricket match (bots, sounds, TTS) → summary (undo, rematch) → activity history/stats → settings.
+**Lean 1.0 is feature-complete for core use** (~98% parity). X01 and Cricket play end-to-end with bots, onboarding, persistence, history, settings, and match lifecycle. Firebase Analytics and Crashlytics are wired for release builds. Activity charts, sector hits, and turn-order drag are in. Safe to dogfood on an emulator or device.
 
-**Not yet:** Firebase, Play Store release pipeline, tablet-optimized layouts, rich activity detail (timelines/charts), drag-to-reorder turn order.
+**Not Play Store–ready.** Release signing, the Play Console listing, and a real `google-services.json` on CI are still open. See [`STATUS.md`](STATUS.md) and [`docs/release/1.0.0-ship-checklist.md`](docs/release/1.0.0-ship-checklist.md).
+
+This checkout is `experiment/vision-tripod-test`. It allowlists the iOS camera-scoring outcome event so Firebase names stay paired. That experiment is not part of the lean 1.0 Play Store ship.
 
 ```bash
 ./gradlew assembleDebug test   # passing
@@ -71,14 +73,11 @@ Unit tests: X01/Cricket engines, checkout suggester, bots, custom bots, onboardi
 
 ---
 
-## Remaining (see PARITY.md)
+## Remaining (see STATUS.md)
 
-- Firebase Analytics + Crashlytics
-- iPad/tablet layout polish
-- Activity sector breakdown + event timeline + charts
-- Turn order drag-to-reorder
-- Full launch splash artwork (iOS PNG export)
-- Localized chip labels everywhere
+- Play Store pipeline: signing, listing, CI `google-services.json`
+- Summary layout is phone-landscape split; tablet stays stacked
+- Camera scoring stays an experiment branch, not the 1.0 ship
 
 ---
 
